@@ -1,0 +1,31 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_store
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    depends_on:
+      - pgadmin
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_store
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_store
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+
+volumes:
+  pgdata:
