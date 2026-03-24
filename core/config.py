@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 from pathlib import Path
 
@@ -7,6 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 import logging
 import os
+
 BASE_DIR = Path(__file__).parent.parent
 
 
@@ -44,24 +44,13 @@ class AccessToken(BaseModel):
     verification_token_secret: str = ""
 
 
-class DatabaseConfig(BaseModel):
-    POSTGRES_USER: str = ""
-    POSTGRES_PASSWORD: str = ""
-    db: str = ""
-    POSTGRES_HOST: str = ""
-
-
 class Setting(BaseSettings):
     api_v1_prefix: str = "/api/v1"
-    db: DatabaseConfig = DatabaseConfig()
+    db_url: str = "postgresql+asyncpg://postgres:matvei225CC@localhost:5432/store"
     db_echo: bool = True
     access_token: AccessToken = AccessToken()
     logging: LoggingConfig = LoggingConfig()
     auth_jwt: AuthJWT = AuthJWT()
-    
-    @property
-    def db_url(self) -> str:
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:5432/{self.POSTGRES_DB}"
 
 
 settings = Setting()
