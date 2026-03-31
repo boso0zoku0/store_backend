@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, Response, Form, Request, status, HTTPException
+from sentry_sdk.profiler.continuous_profiler import get_profiler_id
 from sqlalchemy import update, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from core import db_helper
 from core.models import Users
-from users.crud import add_user, login
+from users.crud import add_user, login, get_profile
 from users.helper import generate_session_id
 
 router = APIRouter(
-    prefix="/auth",
+    prefix="/users",
     tags=["Auth"],
 )
 
@@ -45,8 +46,8 @@ async def user_login(
             value=cookie_update,
             max_age=604800,
             path="/",
-            domain=".cloudpub.ru",
             secure=True,
+            domain=".cloudpub.ru",
         )
         await session.execute(
             update(Users)
@@ -61,3 +62,11 @@ async def user_login(
         }
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+
+@router.get("/get", status_code=status.HTTP_201_CREATED)
+async def get_user(
+    request: Request,
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await get_profile(request=request, session=session)

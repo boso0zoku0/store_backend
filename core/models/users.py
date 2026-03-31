@@ -26,6 +26,8 @@ class Users(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(Text)
     password: Mapped[str] = mapped_column(nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=True)
+    phone: Mapped[str] = mapped_column(Text, unique=True, nullable=True)
     date_registration: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,

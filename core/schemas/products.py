@@ -12,7 +12,7 @@ class Description(BaseModel):
 class ProductsBase(BaseModel):
     name: str
     short_name: str
-    price: float
+    price: int
     description: Description | None = None
     photos: list[str] | None = None
     about: str | None = None

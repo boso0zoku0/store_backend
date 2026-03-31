@@ -1,14 +1,17 @@
 from datetime import datetime, timezone, timedelta
+from multiprocessing.pool import job_counter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Form, Request, status, Response
+from pydantic import BaseModel
 from sqlalchemy import select, insert, and_, func, update, text
 from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
-from core.models import Users
+from core.models import Users, Products, UsersProducts
+from core.models.UsersProducts import ProductStatus
 from users.helper import hash_password, validate_password
 
 
@@ -111,3 +114,60 @@ async def add_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="This user is already registered. Change your registration details.",
         )
+
+
+class DataUser(BaseModel):
+    name: str
+    email: str
+    phone: str
+    product_short_name: str
+    products_count: int
+    products_price: int
+    products_status: ProductStatus
+
+
+async def get_profile(
+    request: Request,
+    session: AsyncSession,
+):
+    user = await get_user_by_cookie(session, request)
+    stmt = (
+        select(
+            Users.id,
+            Users.name,
+            Users.email,
+            Users.phone,
+            Users.date_registration,
+            func.count(UsersProducts.id).label("total_orders"),
+            func.sum(Products.price).label("total_price"),
+            func.json_agg(
+                func.json_build_object(
+                    "id",
+                    Products.id,
+                    "short_name",
+                    Products.short_name,
+                    "status",
+                    UsersProducts.status,
+                    "created_at",
+                    UsersProducts.created_at,
+                    "price",
+                    Products.price,
+                    "photo",
+                    Products.photos,
+                    "quantity",
+                    UsersProducts.quantity,
+                )
+            ).label("products_info"),
+        )
+        .select_from(UsersProducts)
+        .join(Users, Users.id == UsersProducts.users_id)
+        .join(Products, Products.id == UsersProducts.products_id)
+        .where(Users.id == user["user_id"])
+        .group_by(Users.id, Users.name, Users.email, Users.phone)
+    )
+
+    result = await session.execute(stmt)
+    row = result.mappings().first()
+    print(row)
+
+    return row
