@@ -3,7 +3,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from products.views import router as products_router
-from users.views import router as users_router
+from core.users.views import router as users_router
 
 app = FastAPI()
 app.include_router(products_router)

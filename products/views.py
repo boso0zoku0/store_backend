@@ -1,22 +1,16 @@
-from typing import Literal, Annotated
+from typing import Annotated
 
-import bcrypt
 from fastapi import (
     APIRouter,
     Depends,
     Query,
-    status,
-    Response,
     UploadFile,
     File,
     Request,
     Body,
 )
-from pydantic import BaseModel
-from redis.commands.search.reducers import count
 from sqlalchemy.ext.asyncio import AsyncSession
 from core import db_helper
-from core.models import Products
 from core.models.UsersProducts import ProductStatus
 from products.crud import (
     show_products,
@@ -26,14 +20,13 @@ from products.crud import (
     show_product,
     remove_product_to_user,
     search_product,
-    generate_slug,
     find_product_by_filters,
     change_product_status_to_cart,
 )
 from core.schemas.products import ProductsPost
 from core.models.products import Filters
 from static.helper import upload_file
-from users.crud import get_user_by_cookie, get_current_user
+from core.users.crud import get_user_by_cookie, get_current_user
 
 router = APIRouter(
     prefix="/products",

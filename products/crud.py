@@ -1,38 +1,22 @@
-import enum
-import json
-from itertools import count
-from typing import Literal, cast
-from unittest import removeResult
+from typing import cast
 
-from fastapi import Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import Request
 from sqlalchemy import (
     select,
-    asc,
     and_,
     func,
-    desc,
-    Integer,
     insert,
     update,
-    union_all,
-    delete,
-    String,
     Boolean,
-    or_,
-    text,
 )
-from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from core import db_helper
 from core.models import (
-    Users,
     Products,
     UsersProducts,
 )
 from core.models.UsersProducts import ProductStatus
 from core.schemas.products import ProductsPost
-from core.schemas.users_products import UsersProductsBase
-from users.crud import get_user_by_cookie
+from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
 from core.models.products import Filters

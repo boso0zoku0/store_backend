@@ -5,7 +5,7 @@ from typing import Literal
 import jwt
 
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 
 
 class JWTHelper:
