@@ -1,5 +1,4 @@
 from datetime import datetime, timezone, timedelta
-from multiprocessing.pool import job_counter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Form, Request, status, Response
@@ -13,6 +12,7 @@ from core import db_helper
 from core.models import Users, Products, UsersProducts
 from core.models.UsersProducts import ProductStatus
 from users.helper import hash_password, validate_password
+from users.jwt import jwt_helper
 
 
 async def get_user_by_cookie(
@@ -104,6 +104,16 @@ async def add_user(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="This user is already registered.",
             )
+        access_token = jwt_helper.encode(
+            payload={"username": username, "sub": username},
+            token_type="access",
+        )
+        refresh_token = jwt_helper.encode(
+            payload={"username": username, "sub": username},
+            token_type="refresh",
+        )
+        print(f"access_token: {access_token}")
+        print(f"refresh_token: {refresh_token}")
         pwd = hash_password(password=password)
         user = Users(name=username, password=str(pwd))
         session.add(user)

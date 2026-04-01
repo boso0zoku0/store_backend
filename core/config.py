@@ -30,27 +30,11 @@ class LoggingConfig(BaseModel):
         return logging.getLevelNamesMapping()[self.log_level_name]
 
 
-class AuthJWT(BaseModel):
-    private_key_path: Path = BASE_DIR / "core" / "auth" / "certs" / "jwt-private.pem"
-    public_key_path: Path = BASE_DIR / "core" / "auth" / "certs" / "jwt-public.pem"
-    algorithm: str = "RS256"
-    access_token_expire_minutes: int = 10080
-    refresh_token_expire_days: int = 302400
-
-
-class AccessToken(BaseModel):
-    lifetime_seconds: int = 10080
-    reset_password_token_secret: str = ""
-    verification_token_secret: str = ""
-
-
 class Setting(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     db_url: str = "postgresql+asyncpg://postgres:matvei225CC@localhost:5432/store"
     db_echo: bool = True
-    access_token: AccessToken = AccessToken()
     logging: LoggingConfig = LoggingConfig()
-    auth_jwt: AuthJWT = AuthJWT()
 
 
 settings = Setting()
