@@ -1,43 +1,27 @@
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    Query,
-    UploadFile,
-    File,
-    Request,
-    Body,
-)
+from fastapi import Depends, APIRouter, UploadFile, File, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+
 from core import db_helper
 from core.models.UsersProducts import ProductStatus
+from core.schemas.products import ProductsPost
+from core.users.crud import get_user_by_cookie, get_current_auth_user
 from products.crud import (
-    show_products,
     add_product,
     add_product_to_cart,
-    show_cart,
-    show_product,
-    remove_product_to_user,
-    search_product,
-    find_product_by_filters,
     change_product_status_to_cart,
+    show_cart,
+    remove_product_to_user,
 )
-from core.schemas.products import ProductsPost
-from core.models.products import Filters
 from static.helper import upload_file
-from core.users.crud import get_user_by_cookie, get_current_user
 
 router = APIRouter(
     prefix="/products",
-    tags=["Games"],
-    dependencies=[Depends(get_current_user)],
+    tags=["Products"],
+    dependencies=[Depends(get_current_auth_user)],
 )
-
-
-@router.get("/")
-async def get_products(session: AsyncSession = Depends(db_helper.session_dependency)):
-    return await show_products(session)
 
 
 @router.post("/upload")
@@ -102,35 +86,4 @@ async def delete_product(
     user = await get_user_by_cookie(session, request)
     return await remove_product_to_user(
         user_id=user["user_id"], product_id=product_id, session=session
-    )
-
-
-@router.get("/get/product/")
-async def get_product(
-    slug: Annotated[str, Query()],
-    session: AsyncSession = Depends(db_helper.session_dependency),
-):
-
-    return await show_product(slug=slug, session=session)
-
-
-# Api для поиска товара по названию. Не использую /get/product потому что юзер не будет
-# По slug искать, будет по short_name
-@router.post("/find")
-async def find_product(
-    short_name: Annotated[str, Query()],
-    session: AsyncSession = Depends(db_helper.session_dependency),
-):
-    return await search_product(short_name=short_name, session=session)
-
-
-# Api для фильтрации товара, начинаю с цвета
-@router.post("/filters/")
-async def search_color(
-    filters: Filters,
-    session: AsyncSession = Depends(db_helper.session_dependency),
-):
-    return await find_product_by_filters(
-        session=session,
-        filters=filters,
     )

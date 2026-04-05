@@ -1,7 +1,9 @@
 import enum
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
 from sqlalchemy import func, ForeignKey
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,7 +26,7 @@ if TYPE_CHECKING:
 
 class Users(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
     password: Mapped[str] = mapped_column(nullable=False, unique=True)
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=True)
     phone: Mapped[str] = mapped_column(Text, unique=True, nullable=True)
@@ -33,6 +35,7 @@ class Users(Base):
         nullable=False,
         server_default=func.now(),
     )
+    user_role: Mapped[str] = mapped_column(default="client")
     cookie: Mapped[str] = mapped_column(nullable=True)
     cookie_expires: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -44,4 +47,19 @@ class Users(Base):
         "Products",
         back_populates="users",
         secondary="usersproducts",
+    )
+
+    ws_message_from_user = relationship(
+        "WebsocketMessageHistory",
+        foreign_keys="WebsocketMessageHistory.from_user_id",
+        back_populates="from_user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    ws_message_to_user = relationship(
+        "WebsocketMessageHistory",
+        foreign_keys="WebsocketMessageHistory.to_user_id",
+        back_populates="to_user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

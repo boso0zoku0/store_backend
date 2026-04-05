@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -21,7 +21,7 @@ class JWTHelper:
         payload: dict,
         token_type: Literal["access", "refresh"],
     ):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         data = payload.copy()
         if token_type == "access":
             data.update(
@@ -35,7 +35,7 @@ class JWTHelper:
             data.update(
                 {
                     "exp": now + timedelta(days=self.refresh_token_expire_days),
-                    "iat": datetime.now(),
+                    "iat": now,
                     "type": token_type,
                 }
             )

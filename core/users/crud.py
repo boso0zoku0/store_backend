@@ -1,10 +1,13 @@
+import os
 from datetime import datetime, timezone
 from os import access
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Form, Request, status
 from mypy.server.update import refresh_suppressed_submodules
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from pydantic.v1 import ValidationError
+from pydantic_core import PydanticCustomError
 from sqlalchemy import select, func, update, text
 from sqlalchemy.exc import IntegrityError
 
@@ -28,7 +31,6 @@ async def get_current_auth_user(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     token = credentials.credentials
-
     try:
         payload = jwt_helper.decode(token)
         user_id = payload.get("user_id")
@@ -42,9 +44,9 @@ async def get_current_auth_user(
 
         if not user:
             raise HTTPException(404, "User not found")
-
         return user
-    except Exception:
+
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -104,6 +106,7 @@ async def login(
         access = jwt_helper.encode(
             {
                 "username": username,
+                "user_id": user.id,
                 "sub": username,
             },
             token_type="access",
@@ -111,6 +114,7 @@ async def login(
         refresh = jwt_helper.encode(
             {
                 "username": username,
+                "user_id": user.id,
                 "sub": username,
             },
             token_type="refresh",
@@ -123,26 +127,36 @@ async def login(
             )
         )
         await session.commit()
-        return {"access_token": access, "refresh_token": refresh}
+        return {"access_token": access, "refresh_token": refresh, "user": user}
 
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
-async def get_user(
-    username: str, session: AsyncSession = Depends(db_helper.session_dependency)
+async def get_me(
+    request, session: AsyncSession = Depends(db_helper.session_dependency)
 ):
-    stmt = select(Users.id).where(Users.name == username)
+    user = await get_current_user(session, request)
+    stmt = select(Users).where(Users.id == user["user_id"])
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
     if user is None:
         return False
-    return True
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "phone": user.phone,
+        "user_role": user.user_role,
+        "date_registration": user.date_registration,
+    }
 
 
 async def add_user(
     username: str,
     password: str,
+    email: EmailStr,
+    phone: str,
     session: AsyncSession = Depends(db_helper.session_dependency()),
 ):
     try:
@@ -153,27 +167,50 @@ async def add_user(
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="This user is already registered.",
+                detail={"type": "user exists"},
             )
-        access_token = jwt_helper.encode(
-            payload={"username": username, "sub": username},
-            token_type="access",
-        )
-        refresh_token = jwt_helper.encode(
-            payload={"username": username, "sub": username},
-            token_type="refresh",
-        )
-        print(f"access_token: {access_token}")
-        print(f"refresh_token: {refresh_token}")
+
         pwd = hash_password(password=password)
-        user = Users(name=username, password=str(pwd))
+        user = Users(
+            name=username,
+            password=str(pwd),
+            email=str(email),
+            phone=phone,
+            user_role=os.getenv("USER_ROLE"),
+        )
         session.add(user)
         await session.commit()
+        access = jwt_helper.encode(
+            payload={
+                "username": username,
+                "user_id": user.id,
+                "sub": username,
+            },
+            token_type="access",
+        )
+        refresh = jwt_helper.encode(
+            payload={
+                "username": username,
+                "user_id": user.id,
+                "sub": username,
+            },
+            token_type="refresh",
+        )
+        return {"access_token": access, "refresh_token": refresh, "user": user}
 
     except IntegrityError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This user is already registered. Change your registration details.",
+            detail={
+                "type": "invalid username",
+            },
+        )
+    except ValidationError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "type": "invalid email",
+            },
         )
 
 
@@ -232,3 +269,14 @@ async def get_profile(
     print(row)
 
     return row
+
+
+async def get_role_user(
+    request: Request,
+    session: AsyncSession,
+):
+    user = await get_user_by_cookie(session, request)
+    stmt = select(Users.user_role).where(Users.id == user["user_id"])
+    result = await session.execute(stmt)
+    role = result.scalar_one_or_none()
+    return role

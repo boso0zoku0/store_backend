@@ -2,11 +2,17 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from products.views import router as products_router
-from core.users.views import router as users_router
+from api.public.products import router as products_router_public
+from api.protected.products import router as products_router_protected
+
+from api.public.auth import router as auth_router
+from api.protected.users import router as users_router
 
 app = FastAPI()
-app.include_router(products_router)
+app.include_router(products_router_public)
+app.include_router(products_router_protected)
+
+app.include_router(auth_router)
 app.include_router(users_router)
 app.add_middleware(
     CORSMiddleware,
