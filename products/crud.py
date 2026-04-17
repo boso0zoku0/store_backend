@@ -20,6 +20,7 @@ from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
 from core.models.products import Filters
+from core.websocket.notify.manager import manager as notify_manager
 
 
 def generate_slug(name: str) -> str:
@@ -96,6 +97,12 @@ async def add_product_to_cart(
 ):
     user = await get_user_by_cookie(session, request)
     product_id = await get_product(slug, session)
+
+    await notify_manager.broadcast(
+        username=user["username"],
+        product_name=slug,
+        url_id=user["url_id"],
+    )
     stmt = insert(UsersProducts).values(
         users_id=user["user_id"],
         products_id=product_id,
@@ -169,7 +176,6 @@ async def find_product_by_filters(filters: Filters, session: AsyncSession):
         conditions.append(
             Products.filters["categories"].contains([filters.categories[0]])
         )
-        print("??")
 
         if filters.priceRange is not None:
             print("Поиск по ценовому диапазону")

@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional, List, Annotated
 
 from pydantic import BaseModel
 from sqlalchemy import func, ForeignKey, Integer, Numeric
@@ -25,11 +25,11 @@ if TYPE_CHECKING:
 
 
 class Filters(BaseModel):
-    categories: Optional[List[str]] = None
-    priceRange: Optional[List[int]] = None  # или Tuple[float, float]
-    colors: Optional[List[str]] = None
-    volume: Optional[List[int]] = None
-    inStock: Optional[bool] = None
+    categories: list[str] | None = None
+    priceRange: list[int] | None = None
+    colors: list[str] | None = None
+    volume: list[int] | None = None
+    inStock: bool = None
 
 
 class Products(Base):

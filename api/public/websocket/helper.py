@@ -1,34 +1,16 @@
-from fastapi import (
-    APIRouter,
-    WebSocket,
-    WebSocketDisconnect,
-    Depends,
-    WebSocketException,
-    Request,
-    Query,
-)
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
 from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, Request
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+from broker.config import broker, queue_operators, exchange, queue_clients
 from core import db_helper
 from core.models import WebsocketConnections
-from websock.helper import manager
+from core.websocket.crud import get_user_from_cookies, get_user_dialog
+from core.websocket.helper.manager import manager
 import logging
-from websock.crud import (
-    get_user_from_cookies,
-    insert_message_history,
-    get_user_dialog,
-)
-from broker.config import (
-    broker,
-    exchange,
-    queue_operators,
-    queue_clients,
-    queue_notify_client,
-)
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/wss")
+router = APIRouter()
 
 
 @router.get("/get-clients")
@@ -43,6 +25,7 @@ async def operator_ws(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     await websocket.accept()
+    print("Оператор подключился")
     user = await get_user_from_cookies(websocket, session)
     await manager.connect_operator(
         session=session,
@@ -133,7 +116,9 @@ async def clients_ws(
     client: str,
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
+    print("ВОШЛИ в функцию")
     await websocket.accept()
+    print("Accept выполнен")
     user = await get_user_from_cookies(websocket, session)
 
     await manager.connect_client(
@@ -193,6 +178,7 @@ async def clients_ws(
         await session.commit()
         """Через брокер disconnect_client не вызывается почему то. напрямую всё ок"""
         await manager.disconnect_client(client=client)
+
         # await broker.publish(
         #     message={
         #         "from": client,

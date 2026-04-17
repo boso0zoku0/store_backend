@@ -1,4 +1,7 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
+from fastapi.params import Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.requests import Request
@@ -22,12 +25,12 @@ async def get_user(
     return await get_me(session=session, request=request)
 
 
-@router.get("/get", status_code=status.HTTP_201_CREATED)
+@router.get("/get/{url_id}", status_code=status.HTTP_201_CREATED)
 async def get_user(
-    request: Request,
+    url_id: str,
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await get_profile(request=request, session=session)
+    return await get_profile(url_id=url_id, session=session)
 
 
 @router.get("/role", status_code=status.HTTP_201_CREATED)

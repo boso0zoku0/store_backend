@@ -5,13 +5,11 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 
-from core import db_helper
-from broker.config import broker, exchange, queue_notify_client
 from core.models import PendingMessages
-from core.models.websock_msg import WebsocketMessageHistory, TypeMessage
-from websock.crud import (
+from core.models.websock_msg import TypeMessage
+from core.websocket.crud import (
     insert_websocket_db,
     insert_message_history,
     get_user_by_name,

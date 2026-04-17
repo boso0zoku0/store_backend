@@ -3,17 +3,21 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from api.public.products import router as products_router_public
-from api.protected.products import router as products_router_protected
-
+from api.public.websocket import router as websocket_router_public
 from api.public.auth import router as auth_router
+
+from api.protected.products import router as products_router_protected
 from api.protected.users import router as users_router
+from api.public.weather import router as weather_router
 
 app = FastAPI()
+
 app.include_router(products_router_public)
 app.include_router(products_router_protected)
-
+app.include_router(websocket_router_public)
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(weather_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

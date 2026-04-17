@@ -1,9 +1,8 @@
 from typing import Annotated
 
-from fastapi import Depends, APIRouter, UploadFile, File, Body
+from fastapi import Depends, APIRouter, UploadFile, File, Body, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
-
 from core import db_helper
 from core.models.UsersProducts import ProductStatus
 from core.schemas.products import ProductsPost

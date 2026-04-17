@@ -36,7 +36,9 @@ class Users(Base):
         server_default=func.now(),
     )
     user_role: Mapped[str] = mapped_column(default="client")
+    url_id: Mapped[str] = mapped_column(unique=True, nullable=True)
     cookie: Mapped[str] = mapped_column(nullable=True)
+    ip: Mapped[str] = mapped_column(nullable=True)
     cookie_expires: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=True,

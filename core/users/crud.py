@@ -1,13 +1,9 @@
 import os
 from datetime import datetime, timezone
-from os import access
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Form, Request, status
-from mypy.server.update import refresh_suppressed_submodules
-from pydantic import BaseModel, EmailStr
-from pydantic.v1 import ValidationError
-from pydantic_core import PydanticCustomError
+from pydantic import BaseModel, EmailStr, ValidationError
 from sqlalchemy import select, func, update, text
 from sqlalchemy.exc import IntegrityError
 
@@ -22,6 +18,7 @@ from fastapi.security import (
     HTTPBearer,
     HTTPAuthorizationCredentials,
 )
+import uuid
 
 security = HTTPBearer()
 
@@ -79,6 +76,8 @@ async def get_user_by_cookie(
     return {
         "username": user.name,
         "user_id": user.id,
+        "url_id": user.url_id,
+        "ip": user.ip,
     }
 
 
@@ -108,6 +107,7 @@ async def login(
                 "username": username,
                 "user_id": user.id,
                 "sub": username,
+                "url_id": user.url_id,
             },
             token_type="access",
         )
@@ -149,6 +149,7 @@ async def get_me(
         "phone": user.phone,
         "user_role": user.user_role,
         "date_registration": user.date_registration,
+        "url_id": user.url_id,
     }
 
 
@@ -157,9 +158,11 @@ async def add_user(
     password: str,
     email: EmailStr,
     phone: str,
+    ip: str,
     session: AsyncSession = Depends(db_helper.session_dependency()),
 ):
     try:
+        url_id = str(uuid.uuid4())
         stmt = select(Users).where(Users.name == username)
         result = await session.execute(stmt)
         existing_user = result.scalar_one_or_none()
@@ -176,7 +179,9 @@ async def add_user(
             password=str(pwd),
             email=str(email),
             phone=phone,
-            user_role=os.getenv("USER_ROLE"),
+            user_role=os.getenv("CLIENT"),
+            url_id=url_id,
+            ip=ip,
         )
         session.add(user)
         await session.commit()
@@ -185,6 +190,7 @@ async def add_user(
                 "username": username,
                 "user_id": user.id,
                 "sub": username,
+                "url_id": url_id,
             },
             token_type="access",
         )
@@ -224,11 +230,7 @@ class DataUser(BaseModel):
     products_status: ProductStatus
 
 
-async def get_profile(
-    request: Request,
-    session: AsyncSession,
-):
-    user = await get_user_by_cookie(session, request)
+async def get_profile(session: AsyncSession, url_id: str):
     stmt = (
         select(
             Users.id,
@@ -260,13 +262,12 @@ async def get_profile(
         .select_from(UsersProducts)
         .join(Users, Users.id == UsersProducts.users_id)
         .join(Products, Products.id == UsersProducts.products_id)
-        .where(Users.id == user["user_id"])
+        .where(Users.url_id == url_id)
         .group_by(Users.id, Users.name, Users.email, Users.phone)
     )
 
     result = await session.execute(stmt)
     row = result.mappings().first()
-    print(row)
 
     return row
 

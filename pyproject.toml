@@ -29,6 +29,7 @@ dependencies = [
     "fast2sms>=1.0.0",
     "email-validator>=2.3.0",
     "qrcode[pil]>=8.2",
+    "websockets>=16.0",
 ]
 
 [dependency-groups]

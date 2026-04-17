@@ -1,6 +1,15 @@
-from os import access
+import uuid
 
-from fastapi import Form, Depends, HTTPException, Body, APIRouter, Response, status
+from fastapi import (
+    Form,
+    Depends,
+    HTTPException,
+    Body,
+    APIRouter,
+    Response,
+    status,
+    Request,
+)
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,12 +29,14 @@ router = APIRouter(
 @router.post("/registration", status_code=status.HTTP_201_CREATED)
 async def register_user(
     response: Response,
+    request: Request,
     username: str = Form(),
     password: str = Form(),
     email: EmailStr = Form(),
     phone: str = Form(),
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
+    ip = request.client.host
     cookie = str(generate_session_id())
     response.set_cookie(key="session_id", value=cookie, max_age=604800, path="/")
     data = await add_user(
@@ -34,6 +45,7 @@ async def register_user(
         password=password,
         email=email,
         phone=phone,
+        ip=ip,
     )
     await session.execute(
         update(Users).where(Users.name == username).values(cookie=cookie)
@@ -45,6 +57,7 @@ async def register_user(
         "refresh_token": data.get("refresh_token"),
         "user": data.get("user"),
         "user_role": "client",
+        "ip": ip,
     }
 
 

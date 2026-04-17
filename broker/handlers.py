@@ -1,14 +1,9 @@
-import asyncio
-
-from fastapi import Depends
-
 from core import db_helper
-from websock.helper import manager
+from core.websocket.helper.manager import manager
 from broker.config import (
     broker,
     queue_operators,
     queue_clients,
-    queue_notify_client,
     exchange,
 )
 
