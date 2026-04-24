@@ -19,7 +19,7 @@ from broker.config import (
 #         )
 
 
-@broker.subscriber(queue=queue_clients, exchange=exchange)
+@broker.subscriber(queue=queue_clients, exchange=exchange, routing_key="clients")
 async def handler_from_client_to_operator(
     msg: dict | str | bytes,
 ):
@@ -44,7 +44,7 @@ async def handler_from_client_to_operator(
             )
 
 
-@broker.subscriber(queue=queue_operators, exchange=exchange)
+@broker.subscriber(queue=queue_operators, exchange=exchange, routing_key="operators")
 async def handler_from_operator_to_client(msg: dict):
     async with db_helper.session_factory() as session:
         if "file_url" in msg:

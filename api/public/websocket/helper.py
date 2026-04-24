@@ -59,6 +59,7 @@ async def operator_ws(
                     },
                     queue=queue_operators,
                     exchange=exchange,
+                    routing_key="operators",
                 )
             elif msg_type == "operator_message" or (
                 msg_type is None and "message" in data
@@ -75,6 +76,7 @@ async def operator_ws(
                     },
                     queue=queue_operators,
                     exchange=exchange,
+                    routing_key="operators",
                 )
 
             else:
@@ -119,6 +121,7 @@ async def clients_ws(
     print("ВОШЛИ в функцию")
     await websocket.accept()
     print("Accept выполнен")
+
     user = await get_user_from_cookies(websocket, session)
 
     await manager.connect_client(
@@ -152,6 +155,7 @@ async def clients_ws(
                     },
                     queue=queue_clients,
                     exchange=exchange,
+                    routing_key="clients",
                 )
             # elif not handler_bot:
             #     log.info("Кликает по ответу бота")
@@ -167,6 +171,7 @@ async def clients_ws(
                     },
                     queue=queue_clients,
                     exchange=exchange,
+                    routing_key="clients",
                 )
 
     except WebSocketDisconnect:
@@ -179,9 +184,9 @@ async def clients_ws(
         """Через брокер disconnect_client не вызывается почему то. напрямую всё ок"""
         await manager.disconnect_client(client=client)
 
-        # await broker.publish(
-        #     message={
-        #         "from": client,
-        #         "type": "disconnect_client",
-        #     }
-        # )
+    # await broker.publish(
+    #     message={
+    #         "from": client,
+    #         "type": "disconnect_client",
+    #     }
+    # )

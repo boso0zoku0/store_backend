@@ -1,4 +1,5 @@
 import uuid
+from collections import deque
 
 from fastapi import (
     Form,
@@ -59,7 +60,6 @@ async def register_user(
         "user_role": "client",
         "ip": ip,
     }
-
 
 @router.post("/login", status_code=status.HTTP_200_OK)
 async def user_login(
