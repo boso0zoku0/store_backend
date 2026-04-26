@@ -10,8 +10,8 @@ from fastapi import WebSocket
 from core.models import PendingMessages
 from core.models.websock_msg import TypeMessage
 from core.websocket.helper_crud import (
-    insert_ws_helper_message,
-    insert_message_history,
+    insert_ws_connections,
+    insert_ws_message_history,
     get_user_by_name,
 )
 
@@ -73,7 +73,7 @@ class WebsocketManager:
         await self.init_communication_with_client(client)
 
         if not is_advertising:
-            await insert_ws_helper_message(
+            await insert_ws_connections(
                 session=session,
                 username=client,
                 user_id=user_id,
@@ -83,7 +83,7 @@ class WebsocketManager:
                 connection_type="client",
             )
         else:
-            await insert_ws_helper_message(
+            await insert_ws_connections(
                 session=session,
                 username=client,
                 user_id=user_id,
@@ -124,7 +124,7 @@ class WebsocketManager:
         log.info(
             f"Оператор добавлен в список для помощи клиентам {dict(self.dialog_data)}"
         )
-        await insert_ws_helper_message(
+        await insert_ws_connections(
             session=session,
             username=operator,
             user_id=user_id,
@@ -147,7 +147,7 @@ class WebsocketManager:
     ):
         if operator == "":
             from_user_id = await get_user_by_name(client, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 client=client,
@@ -168,7 +168,7 @@ class WebsocketManager:
             self.dialog_data[operator][client] = datetime.now()
             from_user_id = await get_user_by_name(client, session)
             to_user_id = await get_user_by_name(operator, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 to_user_id=to_user_id,
@@ -198,7 +198,7 @@ class WebsocketManager:
             )
             from_user_id = await get_user_by_name(operator, session)
             to_user_id = await get_user_by_name(client, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 to_user_id=to_user_id,
@@ -290,7 +290,7 @@ class WebsocketManager:
 
         if message == "Yes":
             del self.dialog_data[operator][client]
-            await insert_message_history(
+            await insert_ws_message_history(
                 message=message,
                 type_message=TypeMessage.client.value,
                 from_user_id=from_user_id,
@@ -371,7 +371,7 @@ class WebsocketManager:
     ):
         if client == "":
             from_user_id = await get_user_by_name(operator, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 client=client,
@@ -394,7 +394,7 @@ class WebsocketManager:
             )
             from_user_id = await get_user_by_name(operator, session)
             to_user_id = await get_user_by_name(client, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 to_user_id=to_user_id,
@@ -418,7 +418,7 @@ class WebsocketManager:
 
         if operator == "":
             from_user_id = await get_user_by_name(client, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 client=client,
@@ -441,7 +441,7 @@ class WebsocketManager:
             )
             from_user_id = await get_user_by_name(client, session)
             to_user_id = await get_user_by_name(operator, session)
-            await insert_message_history(
+            await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
                 to_user_id=to_user_id,

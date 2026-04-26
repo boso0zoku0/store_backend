@@ -41,7 +41,7 @@ async def get_user_dialog(
     return msg
 
 
-async def insert_ws_helper_message(
+async def insert_ws_connections(
     session: AsyncSession,
     username: str,
     user_id: int,
@@ -62,7 +62,7 @@ async def insert_ws_helper_message(
     await session.commit()
 
 
-async def insert_message_history(
+async def insert_ws_message_history(
     message: str,
     type_message: TypeMessage,
     file_url: str | None = None,

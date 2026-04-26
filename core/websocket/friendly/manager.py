@@ -5,6 +5,8 @@ from typing import Any
 
 from starlette.websockets import WebSocket
 
+from core.websocket.helper_crud import insert_ws_message_history
+
 
 class WebsocketManager:
     def __init__(self):
@@ -23,6 +25,7 @@ class WebsocketManager:
 
     def send_message(self, room_id: str, from_user: str, to_user: str, message: str):
         now = datetime.now()
+        # Доработать вставку в таблицу ws_friendly
         if self.sessions.get(room_id) and self.sessions[room_id].get(from_user):
             self.sessions[room_id][from_user] = now
             self.users[from_user].send_json(
