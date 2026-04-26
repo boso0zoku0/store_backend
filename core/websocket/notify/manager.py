@@ -25,8 +25,12 @@ class WebsocketManager:
                 }
             )
 
-    async def disconnect(self, url_id):
-        del self.users[url_id]
+    def disconnect(self, url_id: str):
+        if url_id in self.users:
+            del self.users[url_id]
+            print(f"❌ Отключился {url_id}, осталось: {len(self.users)}")
+        else:
+            print(f"⚠️ Попытка отключить несуществующий {url_id}")
 
 
 manager = WebsocketManager()

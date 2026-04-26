@@ -1,10 +1,7 @@
-import enum
 import datetime as dt
+import enum
 import uuid
-from typing import Optional
-
 from sqlalchemy import func, ForeignKey, String, Integer, DateTime, Enum, UUID, false
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from core.config import Base
@@ -19,23 +16,20 @@ from sqlalchemy import (
     BigInteger,
 )
 
-from core.models import Users
 
-
-class TypeMessage(enum.Enum):
-    system = "system"
+class WsFriendlyTypeMessage(enum.Enum):
     bot = "bot"
-    operator = "operator"
-    client = "client"
+    recipient = "recipient"
+    sender = "sender"
     media = "media"
 
 
-class WebsocketMessageHistory(Base):
+class WebsocketFriendlyMessage(Base):
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),  # ← PostgreSQL UUID тип
+        UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,  # ← генерируется автоматически
-        server_default=text("gen_random_uuid()"),  # ← для БД
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
     )
     from_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=True
@@ -43,15 +37,12 @@ class WebsocketMessageHistory(Base):
     to_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
-    client: Mapped[str] = mapped_column(Text, nullable=True)
-    operator: Mapped[str] = mapped_column(Text, nullable=True)
+    sender: Mapped[str] = mapped_column(Text, nullable=True)
+    recipient: Mapped[str] = mapped_column(Text, nullable=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    file_url: Mapped[str] = mapped_column(nullable=True)
-    mime_type: Mapped[str] = mapped_column(nullable=True)
-    type_message: Mapped[TypeMessage] = mapped_column(
-        Enum(TypeMessage, name="type_message"), nullable=False
+    type_message: Mapped[WsFriendlyTypeMessage] = mapped_column(
+        Enum(WsFriendlyTypeMessage, name="type_message"), nullable=False
     )
-    is_resolved: Mapped[bool] = mapped_column(nullable=True, server_default=false())
     created_at: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
@@ -60,12 +51,12 @@ class WebsocketMessageHistory(Base):
     from_user = relationship(
         "Users",
         foreign_keys=[from_user_id],
-        back_populates="helper_ws_from_user",
+        back_populates="friendly_ws_from_user",
         cascade="all, delete",
     )
     to_user = relationship(
         "Users",
         foreign_keys=[to_user_id],
-        back_populates="helper_ws_to_user",
+        back_populates="friendly_ws_to_user",
         cascade="all, delete",
     )

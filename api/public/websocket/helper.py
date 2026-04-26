@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from broker.config import broker, queue_operators, exchange, queue_clients
 from core import db_helper
 from core.models import WebsocketConnections
-from core.websocket.crud import get_user_from_cookies, get_user_dialog
+from core.websocket.helper_crud import get_user_from_cookies, get_user_dialog
 from core.websocket.helper.manager import manager
 import logging
 
@@ -67,16 +67,11 @@ async def operator_ws(
                 log.info(
                     f"💬 Сообщение от {data['from']} для {data['to']}: {data.get('message')}"
                 )
-                await broker.publish(
-                    message={
-                        "type": "operator_message",
-                        "from": data["from"],
-                        "to": data["to"],
-                        "message": data.get("message", ""),
-                    },
-                    queue=queue_operators,
-                    exchange=exchange,
-                    routing_key="operators",
+                await manager.send_to_client(
+                    session=session,
+                    operator=data["from"],
+                    client=data["to"],
+                    message=data["message"],
                 )
 
             else:
@@ -147,15 +142,11 @@ async def clients_ws(
             )
             if not handler_bot and "to" in data:
                 log.info(f"data: {data['from']} ; {data['message']}")
-                await broker.publish(
-                    message={
-                        "from": data["from"],
-                        "to": data["to"],
-                        "message": data["message"],
-                    },
-                    queue=queue_clients,
-                    exchange=exchange,
-                    routing_key="clients",
+                await manager.send_to_operator(
+                    session=session,  # ← 1. session
+                    client=data["from"],  # ← 2. client
+                    operator=data["to"],  # ← 3. operator
+                    message=data["message"],  # ← 4. message
                 )
             # elif not handler_bot:
             #     log.info("Кликает по ответу бота")

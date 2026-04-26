@@ -26,38 +26,37 @@ from broker.config import (
 # queue_clients = RabbitQueue("from_clients")
 # queue_operators = RabbitQueue("from_operators")
 
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # 1. Подключение к брокеру
+#     await broker.connect()
+#     print("✅ Broker connected")
+#
+#     # 2. Создание exchange и получение объекта exchange
+#     exchange = RabbitExchange("exchange_chat", durable=True, auto_delete=False)
+#     exchange_obj = await broker.declare_exchange(exchange)
+#     print("✅ Exchange declared")
+#
+#     # 3. Создание очередей и получение объектов очередей
+#     queue_clients_obj = await broker.declare_queue(queue_clients)
+#     queue_operators_obj = await broker.declare_queue(queue_operators)
+#     queue_notify_client_obj = await broker.declare_queue(queue_notify_client)
+#     print("✅ Queues declared")
+#
+#     await queue_clients_obj.bind(exchange_obj, routing_key="clients")
+#     await queue_operators_obj.bind(exchange_obj, routing_key="operators")
+#     await queue_notify_client_obj.bind(exchange_obj, routing_key="notify")
+#
+#     yield
+#
+#     await broker.close()
+#     print("❌ Broker closed")
+#
+#     await broker.close()
+#     print("❌ Broker closed")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 1. Подключение к брокеру
-    await broker.connect()
-    print("✅ Broker connected")
 
-    # 2. Создание exchange и получение объекта exchange
-    exchange = RabbitExchange("exchange_chat", durable=True, auto_delete=False)
-    exchange_obj = await broker.declare_exchange(exchange)
-    print("✅ Exchange declared")
-
-    # 3. Создание очередей и получение объектов очередей
-    queue_clients_obj = await broker.declare_queue(queue_clients)
-    queue_operators_obj = await broker.declare_queue(queue_operators)
-    queue_notify_client_obj = await broker.declare_queue(queue_notify_client)
-    print("✅ Queues declared")
-
-    await queue_clients_obj.bind(exchange_obj, routing_key="clients")
-    await queue_operators_obj.bind(exchange_obj, routing_key="operators")
-    await queue_notify_client_obj.bind(exchange_obj, routing_key="notify")
-
-    yield
-
-    await broker.close()
-    print("❌ Broker closed")
-
-    await broker.close()
-    print("❌ Broker closed")
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 
 app.include_router(products_router_public)

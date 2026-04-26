@@ -9,8 +9,8 @@ from fastapi import WebSocket
 
 from core.models import PendingMessages
 from core.models.websock_msg import TypeMessage
-from core.websocket.crud import (
-    insert_websocket_db,
+from core.websocket.helper_crud import (
+    insert_ws_helper_message,
     insert_message_history,
     get_user_by_name,
 )
@@ -73,7 +73,7 @@ class WebsocketManager:
         await self.init_communication_with_client(client)
 
         if not is_advertising:
-            await insert_websocket_db(
+            await insert_ws_helper_message(
                 session=session,
                 username=client,
                 user_id=user_id,
@@ -83,7 +83,7 @@ class WebsocketManager:
                 connection_type="client",
             )
         else:
-            await insert_websocket_db(
+            await insert_ws_helper_message(
                 session=session,
                 username=client,
                 user_id=user_id,
@@ -124,7 +124,7 @@ class WebsocketManager:
         log.info(
             f"Оператор добавлен в список для помощи клиентам {dict(self.dialog_data)}"
         )
-        await insert_websocket_db(
+        await insert_ws_helper_message(
             session=session,
             username=operator,
             user_id=user_id,

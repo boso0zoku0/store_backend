@@ -14,11 +14,12 @@ from core.models import UsersProducts
 from core.models import WebsocketConnections
 from core.models import WebsocketMessageHistory
 from core.models import PendingMessages
+from core.models import WebsocketFriendlyMessage
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-print(f"SETTINGS: {settings.db_url}")
+print(f"SETTINGS: {settings.db.db_url}")
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
@@ -34,7 +35,7 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-config.set_main_option("sqlalchemy.url", settings.db_url)
+config.set_main_option("sqlalchemy.url", settings.db.db_url)
 
 
 def run_migrations_offline() -> None:

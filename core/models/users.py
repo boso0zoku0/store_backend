@@ -49,19 +49,29 @@ class Users(Base):
         "Products",
         back_populates="users",
         secondary="usersproducts",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        single_parent=True,
     )
 
-    ws_message_from_user = relationship(
+    helper_ws_from_user = relationship(
         "WebsocketMessageHistory",
         foreign_keys="WebsocketMessageHistory.from_user_id",
         back_populates="from_user",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
     )
-    ws_message_to_user = relationship(
+    helper_ws_to_user = relationship(
         "WebsocketMessageHistory",
         foreign_keys="WebsocketMessageHistory.to_user_id",
         back_populates="to_user",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
+    )
+
+    friendly_ws_from_user = relationship(
+        "WebsocketFriendlyMessage",
+        foreign_keys="WebsocketFriendlyMessage.from_user_id",
+        back_populates="from_user",
+    )
+    friendly_ws_to_user = relationship(
+        "WebsocketFriendlyMessage",
+        foreign_keys="WebsocketFriendlyMessage.to_user_id",
+        back_populates="to_user",
     )

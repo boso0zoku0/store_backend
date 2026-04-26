@@ -61,6 +61,7 @@ async def register_user(
         "ip": ip,
     }
 
+
 @router.post("/login", status_code=status.HTTP_200_OK)
 async def user_login(
     response: Response,

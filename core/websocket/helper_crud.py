@@ -1,5 +1,5 @@
 import json
-from sqlalchemy import insert, select, func, and_, or_
+from sqlalchemy import insert, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket, WebSocketException
 from fastapi import Request, Depends
@@ -41,7 +41,7 @@ async def get_user_dialog(
     return msg
 
 
-async def insert_websocket_db(
+async def insert_ws_helper_message(
     session: AsyncSession,
     username: str,
     user_id: int,
@@ -60,16 +60,6 @@ async def insert_websocket_db(
     )
     await session.execute(stmt)
     await session.commit()
-
-
-async def get_user_by_name(
-    username: str,
-    session: AsyncSession = Depends(db_helper.session_dependency),
-):
-    stmt = select(Users.id).where(Users.name == username)
-    result = await session.execute(stmt)
-    res = result.scalars().first()
-    return res
 
 
 async def insert_message_history(
@@ -97,6 +87,16 @@ async def insert_message_history(
     )
     await session.execute(stmt)
     await session.commit()
+
+
+async def get_user_by_name(
+    username: str,
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    stmt = select(Users.id).where(Users.name == username)
+    result = await session.execute(stmt)
+    res = result.scalars().first()
+    return res
 
 
 async def get_user_from_cookies(websocket: WebSocket, session: AsyncSession):
