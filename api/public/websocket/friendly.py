@@ -21,21 +21,22 @@ async def get_user(
 async def users_ws(
     sock: WebSocket,
     url_id: Annotated[str, Query(...)],
+    session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     await sock.accept()
-    room_id = manager.generate_id_room()
-    print("ROOM ID:", room_id)
-    manager.join_room(url_id, room_id)
+    manager.connect(url_id, sock)
     try:
         while True:
             data = await sock.receive_json()
             if data:
-                manager.send_message(
-                    room_id=room_id,
+                await manager.send_message(
                     from_user=data["from_user"],
+                    sender=data["sender"],
                     to_user=data["to_user"],
+                    recipient=data["recipient"],
                     message=data["message"],
+                    session=session,
                 )
 
     except WebSocketDisconnect:
-        manager.disconnect(room_id, url_id)
+        manager.disconnect(url_id)

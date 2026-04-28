@@ -20,13 +20,13 @@ async def get_user_by_url_id(session: AsyncSession, url_id: str):
 
 
 async def insert_ws_friendly_message(
-    from_user_id: str,
-    to_user_id: str,
+    from_user_id: int,
+    to_user_id: int,
     sender: str,
     recipient: str,
     message: str,
     type_message: str,
-    session: AsyncSession = Depends(db_helper.session_dependency),
+    session: AsyncSession,
 ):
     stmt = insert(WebsocketFriendlyMessage).values(
         from_user_id=from_user_id,

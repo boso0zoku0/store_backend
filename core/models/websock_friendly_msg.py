@@ -19,9 +19,7 @@ from sqlalchemy import (
 
 class WsFriendlyTypeMessage(enum.Enum):
     bot = "bot"
-    recipient = "recipient"
-    sender = "sender"
-    media = "media"
+    client = "client"
 
 
 class WebsocketFriendlyMessage(Base):
