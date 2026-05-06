@@ -29,11 +29,11 @@ class WebsocketFriendlyMessage(Base):
         default=uuid.uuid4,
         server_default=text("gen_random_uuid()"),
     )
-    from_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    from_user_url_id: Mapped[str] = mapped_column(
+        ForeignKey("users.url_id", ondelete="CASCADE"), nullable=True
     )
-    to_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    to_user_url_id: Mapped[str] = mapped_column(
+        ForeignKey("users.url_id", ondelete="CASCADE"), nullable=True
     )
     sender: Mapped[str] = mapped_column(Text, nullable=True)
     recipient: Mapped[str] = mapped_column(Text, nullable=True)
@@ -48,13 +48,13 @@ class WebsocketFriendlyMessage(Base):
     )
     from_user = relationship(
         "Users",
-        foreign_keys=[from_user_id],
+        foreign_keys=[from_user_url_id],
         back_populates="friendly_ws_from_user",
         cascade="all, delete",
     )
     to_user = relationship(
         "Users",
-        foreign_keys=[to_user_id],
+        foreign_keys=[to_user_url_id],
         back_populates="friendly_ws_to_user",
         cascade="all, delete",
     )

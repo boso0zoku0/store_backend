@@ -6,8 +6,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
-from core.websocket.friendly_crud import insert_ws_friendly_message
-from core.websocket.helper_crud import insert_ws_message_history
+from core.websocket.friendly_crud import (
+    insert_ws_friendly_message,
+    get_user_by_url_id_or_id,
+)
 
 
 class WebsocketManager:
@@ -19,23 +21,24 @@ class WebsocketManager:
 
     async def send_message(
         self,
-        from_user: int,
+        from_user_url_id: str,
+        to_user_url_id: str,
         sender: str,
-        to_user: int,
         recipient: str,
         message: str,
         session: AsyncSession,
     ):
-        await self.users[recipient].send_json(
+        await self.users[to_user_url_id].send_json(
             {
                 "friendly_message": message,
-                "from": from_user,
-                "to": to_user,
+                "sender": sender,
+                "recipient": recipient,
+                "message": message,
             }
         )
         await insert_ws_friendly_message(
-            from_user_id=from_user,
-            to_user_id=to_user,
+            from_user_url_id=from_user_url_id,
+            to_user_url_id=to_user_url_id,
             sender=sender,
             recipient=recipient,
             message=message,

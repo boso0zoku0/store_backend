@@ -12,16 +12,29 @@ from core.models import WebsocketFriendlyMessage, Users
 from core.models.websock_friendly_msg import WsFriendlyTypeMessage
 
 
-async def get_user_by_url_id(session: AsyncSession, url_id: str):
-    stmt = select(Users.name).where(Users.url_id == url_id)
+async def get_user_by_url_id_or_id(
+    session: AsyncSession,
+    id: int | None = None,
+    url_id: str | None = None,
+):
+    stmt = select(Users.id, Users.name, Users.url_id)
+    if url_id is not None:
+        stmt = stmt.where(Users.url_id == url_id)
+
+    elif id is not None:
+        stmt = stmt.where(Users.id == id)
     result = await session.execute(stmt)
-    res = result.scalars().first()
-    return {"username": res}
+    res = result.mappings().first()
+    return {
+        "id": res["id"],
+        "username": res["name"],
+        "url_id": res["url_id"],
+    }
 
 
 async def insert_ws_friendly_message(
-    from_user_id: int,
-    to_user_id: int,
+    from_user_url_id: str,
+    to_user_url_id: str,
     sender: str,
     recipient: str,
     message: str,
@@ -29,8 +42,8 @@ async def insert_ws_friendly_message(
     session: AsyncSession,
 ):
     stmt = insert(WebsocketFriendlyMessage).values(
-        from_user_id=from_user_id,
-        to_user_id=to_user_id,
+        from_user_url_id=from_user_url_id,
+        to_user_url_id=to_user_url_id,
         sender=sender,
         recipient=recipient,
         message=message,

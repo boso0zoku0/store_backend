@@ -3,7 +3,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
-from core.websocket.friendly_crud import get_user_by_url_id
+from core.websocket.friendly_crud import get_user_by_url_id_or_id
 from core.websocket.friendly.manager import friendly_manager as manager
 
 router = APIRouter()
@@ -14,7 +14,7 @@ async def get_user(
     url_id: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await get_user_by_url_id(session, url_id)
+    return await get_user_by_url_id_or_id(session, url_id=url_id)
 
 
 @router.websocket("/friendly/dialog")
@@ -30,9 +30,9 @@ async def users_ws(
             data = await sock.receive_json()
             if data:
                 await manager.send_message(
-                    from_user=data["from_user"],
+                    from_user_url_id=data["from_user_url_id"],
+                    to_user_url_id=data["to_user_url_id"],
                     sender=data["sender"],
-                    to_user=data["to_user"],
                     recipient=data["recipient"],
                     message=data["message"],
                     session=session,
