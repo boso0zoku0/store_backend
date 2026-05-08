@@ -38,6 +38,7 @@ class WebsocketFriendlyMessage(Base):
     sender: Mapped[str] = mapped_column(Text, nullable=True)
     recipient: Mapped[str] = mapped_column(Text, nullable=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    is_read_message: Mapped[bool] = mapped_column(default=False, nullable=False)
     type_message: Mapped[WsFriendlyTypeMessage] = mapped_column(
         Enum(WsFriendlyTypeMessage, name="type_message"), nullable=False
     )

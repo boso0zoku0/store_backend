@@ -1,13 +1,15 @@
 import json
-from sqlalchemy import insert, select, and_, or_
+
+from fastapi import Depends, WebSocketException
+from sqlalchemy import select, or_, and_, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import WebSocket, WebSocketException
-from fastapi import Request, Depends
+from starlette.requests import Request
+from starlette.websockets import WebSocket
+
 from core import db_helper
+from core.models import WebsocketMessageHistory, WebsocketConnections, Users
+from core.models.websock_msg import TypeMessage
 from core.users.crud import get_user_by_cookie
-from core.models import Users
-from core.models.websock_connect import WebsocketConnections
-from core.models.websock_msg import WebsocketMessageHistory, TypeMessage
 
 
 async def get_user_dialog(

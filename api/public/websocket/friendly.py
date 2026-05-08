@@ -3,7 +3,11 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
-from core.websocket.friendly_crud import get_user_by_url_id_or_id
+from core.websocket.friendly.crud import (
+    get_user_by_url_id_or_id,
+    get_history_dialogs,
+    mark_dialog_message,
+)
 from core.websocket.friendly.manager import friendly_manager as manager
 
 router = APIRouter()
@@ -15,6 +19,28 @@ async def get_user(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     return await get_user_by_url_id_or_id(session, url_id=url_id)
+
+
+@router.get("/get-dialogs")
+async def get_dialogs(
+    url_id: Annotated[str, Query()],
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await get_history_dialogs(session, url_id=url_id)
+
+
+@router.get("/mark-message")
+async def mark_message_as_read(
+    current_url_id: Annotated[str, Query()],
+    interlocutor_url_id: Annotated[str, Query()],
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await mark_dialog_message(
+        session,
+        current_url_id=current_url_id,
+        interlocutor_url_id=interlocutor_url_id,
+        is_read_message=True,
+    )
 
 
 @router.websocket("/friendly/dialog")

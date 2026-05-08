@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from broker.config import broker, queue_operators, exchange, queue_clients
 from core import db_helper
 from core.models import WebsocketConnections
-from core.websocket.helper_crud import get_user_from_cookies, get_user_dialog
+from core.websocket.helper.crud import get_user_dialog, get_user_from_cookies
 from core.websocket.helper.manager import manager
 import logging
 

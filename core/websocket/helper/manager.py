@@ -9,7 +9,7 @@ from fastapi import WebSocket
 
 from core.models import PendingMessages
 from core.models.websock_msg import TypeMessage
-from core.websocket.helper_crud import (
+from core.websocket.helper.crud import (
     insert_ws_connections,
     insert_ws_message_history,
     get_user_by_name,

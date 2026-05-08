@@ -6,9 +6,9 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
-from core.websocket.friendly_crud import (
-    insert_ws_friendly_message,
+from core.websocket.friendly.crud import (
     get_user_by_url_id_or_id,
+    insert_ws_friendly_message,
 )
 
 
