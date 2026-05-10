@@ -2,6 +2,7 @@ from sqlalchemy import select, insert, or_, and_, desc, func, case, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models import Users, WebsocketFriendlyMessage
+from core.websocket.friendly.schemas import DialogResponse
 
 
 async def get_user_by_url_id_or_id(
@@ -43,6 +44,58 @@ async def insert_ws_friendly_message(
     )
     await session.execute(stmt)
     await session.commit()
+
+
+async def get_history_dialog(
+    session: AsyncSession,
+    url_id: str,
+    to_url_id: str,
+):
+    stmt = (
+        select(
+            WebsocketFriendlyMessage.id,
+            WebsocketFriendlyMessage.sender,
+            WebsocketFriendlyMessage.recipient,
+            WebsocketFriendlyMessage.message,
+            WebsocketFriendlyMessage.created_at,
+            case(
+                (WebsocketFriendlyMessage.from_user_url_id == url_id, True), else_=False
+            ).label("is_own"),
+        )
+        .where(
+            or_(
+                # сообщения от url_id к to_url_id
+                and_(
+                    WebsocketFriendlyMessage.from_user_url_id == url_id,
+                    WebsocketFriendlyMessage.to_user_url_id == to_url_id,
+                ),
+                # сообщения от to_url_id к url_id
+                and_(
+                    WebsocketFriendlyMessage.from_user_url_id == to_url_id,
+                    WebsocketFriendlyMessage.to_user_url_id == url_id,
+                ),
+            )
+        )
+        .order_by(WebsocketFriendlyMessage.created_at)
+    )
+
+    result = await session.execute(stmt)
+    rows = result.mappings().all()
+
+    # Добавим лог для отладки
+    print(f"🔍 Найдено сообщений для диалога {url_id} <-> {to_url_id}: {len(rows)}")
+
+    return [
+        {
+            "id": str(row["id"]),
+            "sender": row["sender"],
+            "recipient": row["recipient"],
+            "message": row["message"],
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            "is_own": row["is_own"],
+        }
+        for row in rows
+    ]
 
 
 async def get_history_dialogs(
@@ -105,28 +158,9 @@ async def get_history_dialogs(
 
     result = await session.execute(stmt)
     rows = result.mappings().all()
-    dialogs = []
-    for row in rows:
-        dialogs.append(
-            {
-                "id": row["id"],
-                "from_user_url_id": row["from_user_url_id"],
-                "to_user_url_id": row["to_user_url_id"],
-                "recipient": row["recipient"],
-                "sender": row["sender"],
-                "message": row["message"],
-                "created_at": row["created_at"],
-                "is_own": row["is_own"],
-                "interlocutor": (
-                    row["from_user_url_id"]
-                    if row["from_user_url_id"] == url_id
-                    else row["to_user_url_id"]
-                ),
-                "is_read_message": row["is_read_message"],
-            }
-        )
-
-    return dialogs
+    return [
+        DialogResponse.model_validate(data).model_dump(mode="json") for data in rows
+    ]
 
 
 async def mark_dialog_message(

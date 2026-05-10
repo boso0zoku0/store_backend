@@ -7,6 +7,7 @@ from core.websocket.friendly.crud import (
     get_user_by_url_id_or_id,
     get_history_dialogs,
     mark_dialog_message,
+    get_history_dialog,
 )
 from core.websocket.friendly.manager import friendly_manager as manager
 
@@ -54,10 +55,24 @@ async def users_ws(
     try:
         while True:
             data = await sock.receive_json()
-            if data:
+
+            if data and data["type"] == "request_dialogs_history":
+                await manager.get_dialogs(
+                    url_id=data["url_id"],
+                    session=session,
+                )
+
+            elif data and data["type"] == "request_dialog_history":
+                await manager.get_dialog(
+                    url_id=data["from_url_id"],
+                    to_url_id=data["to_url_id"],
+                    session=session,
+                )
+
+            elif data and data["type"] == "client_msg":
                 await manager.send_message(
-                    from_user_url_id=data["from_user_url_id"],
-                    to_user_url_id=data["to_user_url_id"],
+                    from_user_url_id=data["from_url_id"],
+                    to_user_url_id=data["to_url_id"],
                     sender=data["sender"],
                     recipient=data["recipient"],
                     message=data["message"],

@@ -9,6 +9,8 @@ from starlette.websockets import WebSocket
 from core.websocket.friendly.crud import (
     get_user_by_url_id_or_id,
     insert_ws_friendly_message,
+    get_history_dialog,
+    get_history_dialogs,
 )
 
 
@@ -19,6 +21,24 @@ class WebsocketManager:
     def connect(self, url_id, sock: WebSocket):
         self.users[url_id] = sock
 
+    async def get_dialog(self, url_id: str, to_url_id: str, session: AsyncSession):
+        messages = await get_history_dialog(session, url_id=url_id, to_url_id=to_url_id)
+        await self.users[url_id].send_json(
+            {
+                "type": "response_dialog_history",
+                "message": messages,
+            }
+        )
+
+    async def get_dialogs(self, url_id: str, session: AsyncSession):
+        messages = await get_history_dialogs(session, url_id)
+        await self.users[url_id].send_json(
+            {
+                "type": "response_dialogs_history",
+                "message": messages,
+            }
+        )
+
     async def send_message(
         self,
         from_user_url_id: str,
@@ -28,12 +48,16 @@ class WebsocketManager:
         message: str,
         session: AsyncSession,
     ):
+        now = datetime.now()
         await self.users[to_user_url_id].send_json(
             {
-                "friendly_message": message,
+                "from_user_url_id": from_user_url_id,
+                "to_user_url_id": to_user_url_id,
+                "type": "client_msg",
                 "sender": sender,
                 "recipient": recipient,
                 "message": message,
+                "created_at": str(now),
             }
         )
         await insert_ws_friendly_message(
