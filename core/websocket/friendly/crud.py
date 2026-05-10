@@ -26,8 +26,8 @@ async def get_user_by_url_id_or_id(
 
 
 async def insert_ws_friendly_message(
-    from_user_url_id: str,
-    to_user_url_id: str,
+    from_url_id: str,
+    to_url_id: str,
     sender: str,
     recipient: str,
     message: str,
@@ -35,8 +35,8 @@ async def insert_ws_friendly_message(
     session: AsyncSession,
 ):
     stmt = insert(WebsocketFriendlyMessage).values(
-        from_user_url_id=from_user_url_id,
-        to_user_url_id=to_user_url_id,
+        from_url_id=from_url_id,
+        to_url_id=to_url_id,
         sender=sender,
         recipient=recipient,
         message=message,
@@ -59,20 +59,20 @@ async def get_history_dialog(
             WebsocketFriendlyMessage.message,
             WebsocketFriendlyMessage.created_at,
             case(
-                (WebsocketFriendlyMessage.from_user_url_id == url_id, True), else_=False
+                (WebsocketFriendlyMessage.from_url_id == url_id, True), else_=False
             ).label("is_own"),
         )
         .where(
             or_(
                 # сообщения от url_id к to_url_id
                 and_(
-                    WebsocketFriendlyMessage.from_user_url_id == url_id,
-                    WebsocketFriendlyMessage.to_user_url_id == to_url_id,
+                    WebsocketFriendlyMessage.from_url_id == url_id,
+                    WebsocketFriendlyMessage.to_url_id == to_url_id,
                 ),
                 # сообщения от to_url_id к url_id
                 and_(
-                    WebsocketFriendlyMessage.from_user_url_id == to_url_id,
-                    WebsocketFriendlyMessage.to_user_url_id == url_id,
+                    WebsocketFriendlyMessage.from_url_id == to_url_id,
+                    WebsocketFriendlyMessage.to_url_id == url_id,
                 ),
             )
         )
@@ -105,19 +105,19 @@ async def get_history_dialogs(
     subquery = (
         select(
             func.least(
-                WebsocketFriendlyMessage.from_user_url_id,
-                WebsocketFriendlyMessage.to_user_url_id,
+                WebsocketFriendlyMessage.from_url_id,
+                WebsocketFriendlyMessage.to_url_id,
             ).label("user_a"),
             func.greatest(
-                WebsocketFriendlyMessage.from_user_url_id,
-                WebsocketFriendlyMessage.to_user_url_id,
+                WebsocketFriendlyMessage.from_url_id,
+                WebsocketFriendlyMessage.to_url_id,
             ).label("user_b"),
             func.max(WebsocketFriendlyMessage.created_at).label("max_created"),
         )
         .where(
             or_(
-                WebsocketFriendlyMessage.from_user_url_id == url_id,
-                WebsocketFriendlyMessage.to_user_url_id == url_id,
+                WebsocketFriendlyMessage.from_url_id == url_id,
+                WebsocketFriendlyMessage.to_url_id == url_id,
             )
         )
         .group_by("user_a", "user_b")
@@ -126,28 +126,28 @@ async def get_history_dialogs(
     stmt = (
         select(
             WebsocketFriendlyMessage.id,
-            WebsocketFriendlyMessage.from_user_url_id,
-            WebsocketFriendlyMessage.to_user_url_id,
+            WebsocketFriendlyMessage.from_url_id,
+            WebsocketFriendlyMessage.to_url_id,
             WebsocketFriendlyMessage.recipient,
             WebsocketFriendlyMessage.sender,
             WebsocketFriendlyMessage.message,
             WebsocketFriendlyMessage.created_at,
             WebsocketFriendlyMessage.is_read_message,
             case(
-                (WebsocketFriendlyMessage.from_user_url_id == url_id, True), else_=False
+                (WebsocketFriendlyMessage.from_url_id == url_id, True), else_=False
             ).label("is_own"),
         )
         .join(
             subquery,
             and_(
                 func.least(
-                    WebsocketFriendlyMessage.from_user_url_id,
-                    WebsocketFriendlyMessage.to_user_url_id,
+                    WebsocketFriendlyMessage.from_url_id,
+                    WebsocketFriendlyMessage.to_url_id,
                 )
                 == subquery.c.user_a,
                 func.greatest(
-                    WebsocketFriendlyMessage.from_user_url_id,
-                    WebsocketFriendlyMessage.to_user_url_id,
+                    WebsocketFriendlyMessage.from_url_id,
+                    WebsocketFriendlyMessage.to_url_id,
                 )
                 == subquery.c.user_b,
                 WebsocketFriendlyMessage.created_at == subquery.c.max_created,
@@ -173,8 +173,8 @@ async def mark_dialog_message(
         select(WebsocketFriendlyMessage.id)
         .where(
             and_(
-                WebsocketFriendlyMessage.from_user_url_id == interlocutor_url_id,
-                WebsocketFriendlyMessage.to_user_url_id == current_url_id,
+                WebsocketFriendlyMessage.from_url_id == interlocutor_url_id,
+                WebsocketFriendlyMessage.to_url_id == current_url_id,
             )
         )
         .order_by(desc(WebsocketFriendlyMessage.created_at))

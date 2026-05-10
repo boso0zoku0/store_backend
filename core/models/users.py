@@ -67,11 +67,11 @@ class Users(Base):
 
     friendly_ws_from_user = relationship(
         "WebsocketFriendlyMessage",
-        foreign_keys="WebsocketFriendlyMessage.from_user_url_id",
+        foreign_keys="WebsocketFriendlyMessage.from_url_id",
         back_populates="from_user",
     )
     friendly_ws_to_user = relationship(
         "WebsocketFriendlyMessage",
-        foreign_keys="WebsocketFriendlyMessage.to_user_url_id",
+        foreign_keys="WebsocketFriendlyMessage.to_url_id",
         back_populates="to_user",
     )

@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 class DialogResponse(BaseModel):
     id: UUID
-    from_user_url_id: str
-    to_user_url_id: str
+    from_url_id: str
+    to_url_id: str
     recipient: str
     sender: str
     message: str

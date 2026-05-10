@@ -1,13 +1,10 @@
 import uuid
-from collections import defaultdict
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocket
 
 from core.websocket.friendly.crud import (
-    get_user_by_url_id_or_id,
     insert_ws_friendly_message,
     get_history_dialog,
     get_history_dialogs,
@@ -41,18 +38,29 @@ class WebsocketManager:
 
     async def send_message(
         self,
-        from_user_url_id: str,
-        to_user_url_id: str,
+        from_url_id: str,
+        to_url_id: str,
         sender: str,
         recipient: str,
         message: str,
         session: AsyncSession,
     ):
         now = datetime.now()
-        await self.users[to_user_url_id].send_json(
+        await self.users[to_url_id].send_json(
             {
-                "from_user_url_id": from_user_url_id,
-                "to_user_url_id": to_user_url_id,
+                "from_url_id": from_url_id,
+                "to_url_id": to_url_id,
+                "type": "client_msg",
+                "sender": sender,
+                "recipient": recipient,
+                "message": message,
+                "created_at": str(now),
+            }
+        )
+        await self.users[from_url_id].send_json(
+            {
+                "from_url_id": from_url_id,
+                "to_url_id": to_url_id,
                 "type": "client_msg",
                 "sender": sender,
                 "recipient": recipient,
@@ -61,8 +69,8 @@ class WebsocketManager:
             }
         )
         await insert_ws_friendly_message(
-            from_user_url_id=from_user_url_id,
-            to_user_url_id=to_user_url_id,
+            from_url_id=from_url_id,
+            to_url_id=to_url_id,
             sender=sender,
             recipient=recipient,
             message=message,

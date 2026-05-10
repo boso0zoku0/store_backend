@@ -71,8 +71,8 @@ async def users_ws(
 
             elif data and data["type"] == "client_msg":
                 await manager.send_message(
-                    from_user_url_id=data["from_url_id"],
-                    to_user_url_id=data["to_url_id"],
+                    from_url_id=data["from_url_id"],
+                    to_url_id=data["to_url_id"],
                     sender=data["sender"],
                     recipient=data["recipient"],
                     message=data["message"],
