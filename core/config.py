@@ -25,7 +25,7 @@ class LoggingConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
-    db_url: str = "postgresql+asyncpg://postgres:matvei225CC@localhost:5432/store"
+    db_url: str = "postgresql+asyncpg://postgres:matvei225CC@postgres:5432/store"
     db_echo: bool = True
     naming_convention: dict[str, str] = {
         "ix": "ix_%(column_0_label)s",

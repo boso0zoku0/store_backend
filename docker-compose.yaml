@@ -9,8 +9,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    depends_on:
-      - pgadmin
 
   pgadmin:
     image: dpage/pgadmin4
@@ -19,6 +17,8 @@ services:
       - .env
     ports:
       - "5000:5000"
+    depends_on:
+      - postgres
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -26,6 +26,17 @@ services:
     ports:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
+
+  fastapi-app:
+    build: .
+    container_name: app_store
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+#    volumes:
+#      - ./:/app  # не нужно пересобирать, синхронизируются изменения сами
 
 volumes:
   pgdata:
