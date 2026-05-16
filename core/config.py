@@ -10,6 +10,10 @@ import logging
 import os
 
 BASE_DIR = Path(__file__).parent.parent
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
 
 
 class LoggingConfig(BaseModel):
@@ -25,7 +29,9 @@ class LoggingConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
-    db_url: str = "postgresql+asyncpg://postgres:matvei225CC@postgres:5432/store"
+    db_url: str = (
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:5432/{POSTGRES_DB}"
+    )
     db_echo: bool = True
     naming_convention: dict[str, str] = {
         "ix": "ix_%(column_0_label)s",
