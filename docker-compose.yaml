@@ -41,7 +41,7 @@ services:
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
     depends_on:
-      - backend-app
+      - backend_app
     restart: unless-stopped
 
 
