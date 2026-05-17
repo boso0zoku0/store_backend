@@ -54,12 +54,12 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 
-  backend-app:
+  backend_app:
     build: .
     container_name: backend_app
     env_file:
       - .env
-  frontend-app:
+  frontend_app:
     build:
       context: ../frontend           # Указал где искать Dockerfile, для бэка не надо потому что в текущей папке
     container_name: frontend_app
