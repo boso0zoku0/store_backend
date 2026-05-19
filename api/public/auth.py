@@ -79,7 +79,7 @@ async def user_login(
             max_age=604800,
             path="/",
             secure=True,
-            domain=".cloudpub.ru",
+            domain=".clay-shop.ru",
         )
         await session.execute(
             update(Users)

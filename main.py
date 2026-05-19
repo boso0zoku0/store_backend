@@ -69,10 +69,8 @@ app.include_router(weather_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5175",
-        "http://localhost:5174",
-        "https://bosozoku-shop.cloudpub.ru",
-        "http://localhost:5173",
+        "https://clay-shop.ru",
+        "https://www.clay-shop.ru",
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Разрешаем все методы
