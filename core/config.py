@@ -15,6 +15,11 @@ POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_DB = os.getenv("POSTGRES_DB")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST")
 
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = os.getenv("REDIS_PORT")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_DB_COUNT = os.getenv("REDIS_DB_COUNT")
+
 
 class LoggingConfig(BaseModel):
     log_level_name: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -42,10 +47,17 @@ class DatabaseConfig(BaseModel):
     }
 
 
+class RedisConfig(BaseModel):
+    redis_url: str = (
+        f"redis://:{REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${REDIS_DB_COUNT}"
+    )
+
+
 class Setting(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     db: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()
+    redis: RedisConfig = RedisConfig()
 
 
 settings = Setting()

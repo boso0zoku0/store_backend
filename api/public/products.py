@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from redis import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
@@ -12,6 +13,8 @@ from products.crud import (
     search_product,
     find_product_by_filters,
 )
+from core.config import settings
+
 
 router = APIRouter(
     prefix="/products",

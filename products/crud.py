@@ -1,3 +1,4 @@
+import json
 from typing import cast
 
 from fastapi import Request
@@ -10,6 +11,8 @@ from sqlalchemy import (
     Boolean,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from core import settings
 from core.models import (
     Products,
     UsersProducts,
@@ -21,6 +24,7 @@ import re
 import unicodedata
 from core.models.products import Filters
 from core.websocket.notify.manager import manager as notify_manager
+from redis_config import redis_client
 
 
 def generate_slug(name: str) -> str:
@@ -35,9 +39,20 @@ def generate_slug(name: str) -> str:
 async def show_products(
     session: AsyncSession,
 ):
+    cache_key = "products:all"
+    cache = await redis_client.get(cache_key)
+    if cache:
+        return json.loads(cache)
+
     stmt = select(Products).order_by(Products.id)
     result = await session.execute(stmt)
     products = result.scalars().all()
+
+    await redis_client.set(
+        cache_key,
+        json.dumps(products),
+        ex=60,
+    )
     return products
 
 

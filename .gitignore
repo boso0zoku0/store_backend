@@ -30,8 +30,6 @@ alembic.ini
 core/config.py
 
 
-
-
 # vim temporary files
 *~
 .*.sw?
