@@ -15,10 +15,10 @@ POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_DB = os.getenv("POSTGRES_DB")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST")
 
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = os.getenv("REDIS_PORT")
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-REDIS_DB_COUNT = os.getenv("REDIS_DB_COUNT")
+REDIS_HOST: str = os.getenv("REDIS_HOST", "redis_store")
+REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+REDIS_DB_COUNT: int = int(os.getenv("REDIS_DB_COUNT", "0"))
 
 
 class LoggingConfig(BaseModel):
@@ -47,15 +47,16 @@ class DatabaseConfig(BaseModel):
     }
 
 
-class RedisConfig:
-    def __init__(self):
-        self.host = REDIS_HOST
-        self.port = REDIS_PORT
-        self.password = REDIS_PASSWORD
-        self.db_count = REDIS_DB_COUNT
+class RedisConfig(BaseSettings):
+    host: str = os.getenv("REDIS_HOST", "redis_store")
+    port: int = int(os.getenv("REDIS_PORT", "6379"))
+    password: str = os.getenv("REDIS_PASSWORD", "")
+    db_count: int = int(os.getenv("REDIS_DB_COUNT", "0"))
 
-    def get_url(self):
-        return f"redis://:{self.password}@{self.host}:{self.port}/{self.db_count}"
+    def get_url(self) -> str:
+        if self.password:
+            return f"redis://:{self.password}@{self.host}:{self.port}/{self.db_count}"
+        return f"redis://{self.host}:{self.port}/{self.db_count}"
 
 
 class Setting(BaseSettings):
