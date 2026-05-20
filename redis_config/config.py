@@ -2,5 +2,6 @@ from redis import Redis
 
 from core import settings
 
-redis_config = settings.redis.redis_url
-redis_client = Redis.from_url(redis_config, decode_responses=True)
+redis_config = settings.redis
+url = redis_config.get_url()
+redis_client = Redis.from_url(url, decode_responses=True)

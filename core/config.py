@@ -47,10 +47,15 @@ class DatabaseConfig(BaseModel):
     }
 
 
-class RedisConfig(BaseModel):
-    redis_url: str = (
-        f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_COUNT}"
-    )
+class RedisConfig:
+    def __init__(self):
+        self.host = REDIS_HOST
+        self.port = REDIS_PORT
+        self.password = REDIS_PASSWORD
+        self.db_count = REDIS_DB_COUNT
+
+    def get_url(self):
+        return f"redis://:{self.password}@{self.host}:{self.port}/{self.db_count}"
 
 
 class Setting(BaseSettings):
