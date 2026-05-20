@@ -49,7 +49,7 @@ class DatabaseConfig(BaseModel):
 
 class RedisConfig(BaseModel):
     redis_url: str = (
-        f"redis://:{REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${REDIS_DB_COUNT}"
+        f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB_COUNT}"
     )
 
 
