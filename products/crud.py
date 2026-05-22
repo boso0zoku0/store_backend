@@ -182,11 +182,6 @@ async def search_product(short_name: str, session: AsyncSession):
 
 
 async def find_product_by_filters(filters: Filters, session: AsyncSession):
-    cache_key = "products:filters"
-    cache = await redis_client.get(cache_key)
-    if cache:
-        return json.loads(cache)
-    
     stmt = select(Products)
     print(f"Фильтры: {filters}")
     conditions = []
@@ -218,13 +213,7 @@ async def find_product_by_filters(filters: Filters, session: AsyncSession):
                 conditions.append(Products.filters["volume"] == filters.volume)
             stmt = stmt.where(and_(*conditions))
             result = await session.execute(stmt)
-            
             res = result.scalars().all()
-            await redis_client.set(
-                cache_key,
-                json.dumps(res),
-                ex=60,
-            )
             return res
     else:
         print(f"Второстепенный поиск")
