@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Form, Request, status
 from pydantic import BaseModel, EmailStr, ValidationError
-from sqlalchemy import select, func, update, text
+from sqlalchemy import select, func, update, text, JSON, cast
 from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -238,32 +238,35 @@ async def get_profile(session: AsyncSession, url_id: str):
             Users.email,
             Users.phone,
             Users.date_registration,
-            func.count(UsersProducts.id).label("total_orders"),
-            func.sum(Products.price).label("total_price"),
-            func.json_agg(
-                func.json_build_object(
-                    "id",
-                    Products.id,
-                    "short_name",
-                    Products.short_name,
-                    "status",
-                    UsersProducts.status,
-                    "created_at",
-                    UsersProducts.created_at,
-                    "price",
-                    Products.price,
-                    "photo",
-                    Products.photos,
-                    "quantity",
-                    UsersProducts.quantity,
-                )
+            func.coalesce(func.count(UsersProducts.id), 0).label("total_orders"),
+            func.coalesce(func.sum(Products.price), 0).label("total_price"),
+            func.coalesce(
+                func.json_agg(
+                    func.json_build_object(
+                        "id",
+                        Products.id,
+                        "short_name",
+                        Products.short_name,
+                        "status",
+                        UsersProducts.status,
+                        "created_at",
+                        UsersProducts.created_at,
+                        "price",
+                        Products.price,
+                        "photo",
+                        Products.photos,
+                        "quantity",
+                        UsersProducts.quantity,
+                    )
+                ),
+                cast("[]", JSON),
             ).label("products_info"),
         )
-        .select_from(UsersProducts)
-        .join(Users, Users.id == UsersProducts.users_id)
-        .join(Products, Products.id == UsersProducts.products_id)
+        .select_from(Users)
+        .outerjoin(UsersProducts, UsersProducts.users_id == Users.id)
+        .outerjoin(Products, Products.id == UsersProducts.products_id)
         .where(Users.url_id == url_id)
-        .group_by(Users.id, Users.name, Users.email, Users.phone)
+        .group_by(Users.id)
     )
 
     result = await session.execute(stmt)

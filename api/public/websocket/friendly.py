@@ -6,8 +6,8 @@ from core import db_helper
 from core.websocket.friendly.crud import (
     get_user_by_url_id_or_id,
     get_history_dialogs,
-    mark_dialog_message,
     get_history_dialog,
+    mark_dialog_as_read,
 )
 from core.websocket.friendly.manager import friendly_manager as manager
 
@@ -30,17 +30,16 @@ async def get_dialogs(
     return await get_history_dialogs(session, url_id=url_id)
 
 
-@router.get("/mark-message")
+@router.get("/mark-dialog-as-read")
 async def mark_message_as_read(
     current_url_id: Annotated[str, Query()],
     interlocutor_url_id: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await mark_dialog_message(
+    return await mark_dialog_as_read(
         session,
         current_url_id=current_url_id,
         interlocutor_url_id=interlocutor_url_id,
-        is_read_message=True,
     )
 
 
@@ -76,6 +75,17 @@ async def users_ws(
                     sender=data["sender"],
                     recipient=data["recipient"],
                     message=data["message"],
+                    session=session,
+                )
+            elif data and data["type"] == "request_dialog_last_message":
+                await manager.get_last_message(
+                    from_url_id=data["from_url_id"],
+                    to_url_id=data["to_url_id"],
+                    session=session,
+                )
+            elif data and data["type"] == "request_is_new_message":
+                await manager.has_unread_messages(
+                    url_id=data["url_id"],
                     session=session,
                 )
 

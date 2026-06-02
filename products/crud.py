@@ -98,9 +98,8 @@ async def remove_product_to_user(product_id: int, user_id: int, session: AsyncSe
         )
     )
     res = await session.execute(stmt)
-    products = res.scalars().all()
-    for product in products:
-        await session.delete(product)
+    product = res.scalar_one_or_none()
+    await session.delete(product)
     await session.commit()
 
 

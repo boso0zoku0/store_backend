@@ -40,8 +40,6 @@ services:
       - ./static/media:/static/media:rw
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
-    depends_on:
-      - backend_app
     restart: unless-stopped
 
 
@@ -87,6 +85,8 @@ services:
     build:
       context: ../frontend           # Указал где искать Dockerfile, для бэка не надо потому что в текущей папке
     container_name: frontend_app
+    volumes:
+      - ../frontend/dist:/usr/share/nginx/html:ro
     restart: unless-stopped
 
 

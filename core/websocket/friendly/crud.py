@@ -98,6 +98,31 @@ async def get_history_dialog(
     ]
 
 
+async def get_dialog_last_message(
+    session: AsyncSession,
+    from_url_id: str,
+    to_url_id: str,
+):
+    stmt = (
+        select(WebsocketFriendlyMessage)
+        .where(
+            and_(
+                WebsocketFriendlyMessage.from_url_id == from_url_id,
+                WebsocketFriendlyMessage.to_url_id == to_url_id,
+            )
+            | and_(
+                WebsocketFriendlyMessage.from_url_id == to_url_id,
+                WebsocketFriendlyMessage.to_url_id == from_url_id,
+            )
+        )
+        .order_by(WebsocketFriendlyMessage.created_at.desc())
+        .limit(1)
+    )
+
+    res = await session.execute(stmt)
+    return res.scalar_one_or_none()
+
+
 async def get_history_dialogs(
     session: AsyncSession,
     url_id: str,
@@ -163,28 +188,35 @@ async def get_history_dialogs(
     ]
 
 
-async def mark_dialog_message(
+async def unread_messages(
+    session: AsyncSession,
+    url_id: str,
+):
+    stmt = select(WebsocketFriendlyMessage.is_read_message).where(
+        WebsocketFriendlyMessage.to_url_id == url_id,
+    )
+    res = await session.execute(stmt)
+    messages = res.scalars().all()
+    for read_message in messages:
+        if not read_message:
+            return True
+
+
+async def mark_dialog_as_read(
     session: AsyncSession,
     current_url_id: str,
     interlocutor_url_id: str,
-    is_read_message: bool,
 ):
-    subquery = (
-        select(WebsocketFriendlyMessage.id)
+    stmt = (
+        update(WebsocketFriendlyMessage)
         .where(
             and_(
                 WebsocketFriendlyMessage.from_url_id == interlocutor_url_id,
                 WebsocketFriendlyMessage.to_url_id == current_url_id,
+                WebsocketFriendlyMessage.is_read_message == False,
             )
         )
-        .order_by(desc(WebsocketFriendlyMessage.created_at))
-        .limit(1)
-        .scalar_subquery()
-    )
-    stmt = (
-        update(WebsocketFriendlyMessage)
-        .where(WebsocketFriendlyMessage.id == subquery)
-        .values(is_read_message=is_read_message)
+        .values(is_read_message=True)
     )
 
     await session.execute(stmt)

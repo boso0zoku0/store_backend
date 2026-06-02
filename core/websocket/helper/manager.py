@@ -47,7 +47,7 @@ class WebsocketManager:
             try:
                 if not self.dialog_data[operator].get(client):
                     break
-                await asyncio.sleep(10)  # Проверка каждые 30 секунд
+                await asyncio.sleep(10)  # Проверка каждые 10 секунд
                 await self._check_last_msg_operator_with_client(operator, client)
             except Exception as e:
                 print(f"Error in timeout checker: {e}")
@@ -55,7 +55,7 @@ class WebsocketManager:
     async def _check_last_msg_operator_with_client(self, operator: str, client: str):
         now = datetime.now()
         last_msg_time = self.dialog_data[operator][client]
-        if now > last_msg_time + timedelta(seconds=30):
+        if now > last_msg_time + timedelta(seconds=10):
             await self.disconnect_client(client)
 
     async def connect_client(

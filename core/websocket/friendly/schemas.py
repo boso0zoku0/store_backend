@@ -13,6 +13,5 @@ class DialogResponse(BaseModel):
     message: str
     created_at: datetime
     is_own: bool
-    interlocutor: str
     is_read_message: bool
     interlocutor: str | None = None
