@@ -56,7 +56,7 @@ async def handler_from_operator_to_client(msg: dict):
                 mime_type=msg["mime_type"],
                 file_url=msg["file_url"],
             )
-        # if "notify_connect" in msg:
+        # if "connect_request" in msg:
         #     await manager.notify_connect_to_client(
         #         operator=msg["from"], client=msg["to"]
         #     )

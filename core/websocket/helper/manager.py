@@ -118,12 +118,7 @@ class WebsocketManager:
         session: AsyncSession,
     ):
 
-        self.dialog_data[operator] = {}
         self.operators[operator] = websocket
-        # Если по ключу оператор пусто - значит можно считать оператора НЕ занятым
-        log.info(
-            f"Оператор добавлен в список для помощи клиентам {dict(self.dialog_data)}"
-        )
         await insert_ws_connections(
             session=session,
             username=operator,
@@ -155,7 +150,6 @@ class WebsocketManager:
                 message=message,
                 type_message=TypeMessage.client.value,
             )
-            pass
         else:
             await self.operators[operator].send_json(
                 {
@@ -233,40 +227,37 @@ class WebsocketManager:
         except Exception as e:
             log.error(f"✗ Ошибка при отключении клиента {client}: {e}")
 
-    async def notify_disconnect_to_operators(self, client: str):
-        for operator in self.dialog_data.keys():
-            await self.operators[operator].send_json(
-                {
-                    "type": "notify_disconnect",
-                    "from": client,
-                }
-            )
-
-    async def notify_connect_to_operators(
+    async def connect_request_to_operators(
         self,
         client: str,
     ):
         busy_operators = set(self.dialog_data.keys())
+        print("busy_operators:", busy_operators)
         for op in self.operators.keys():
-            # для отладки not убрал, т.к отработает если только время пройдет
-            if op in busy_operators:
+            if op not in busy_operators:
                 await self.operators[op].send_json(
                     {
-                        "type": "notify_connect",
+                        "type": "connect_request",
                         "from": client,
                         "to": op,
                     }
                 )
+                print("busy_operator:", op)
 
-    async def notify_connect_to_client(self, client: str, operator: str):
+    async def connect_confirm_to_client(self, client: str, operator: str):
+        self.dialog_data[operator][client] = datetime.now()
         await self.clients[client].send_json(
             {
-                "type": "notify_connect_to_client",
+                "type": "connect_confirm",
                 "from": operator,
                 "to": client,
-                "message": f"Operator {operator} has joined chat",
+                "message": f"Оператор {operator} вошел в чат",
             }
         )
+        # Пришел к выводу, что send_json логика на бэке не нужна, на фронте отправляю и так
+        # connect_confirm, а вот в локальный словарь надо сохранять кого то(клиента и оператора наверно)
+        # Возможная проблема, на фронте в useRef прокидываю имя оператора, а на бэке
+        # не успеваю добавить его в словарь
 
     async def bot_ask_question_about_solving_problem(
         self, client: str, operator: str, message: str
@@ -299,27 +290,23 @@ class WebsocketManager:
                 is_resolved=True,
             )
 
-    async def sender_bot(
-        self, client: str, message: str, session: AsyncSession, websocket: WebSocket
-    ):
-
-        triggers_operator = {"help me", "call the operator"}
+    async def sender_bot(self, client: str, message: str):
         triggers_bot = {
             "View the movie catalog": lambda: get_list_games(),
             "View the genre catalog": lambda: get_list_genres(),
             "Find out the creator of the website": "The creator comes from a small town. The site was created in 2026 as part of a single developer",
             "Call the operator with command - 'help me'": "The operator is already rushing to you",
         }
-        # Проверка на вызов оператора
+        triggers_operator = {"help me", "call the operator"}
         if any(trigger in message for trigger in triggers_operator):
             await self.clients[client].send_json(
                 {
                     "type": "bot_message",
-                    "message": "The operator is already rushing to you",
+                    "message": "Оператор оповещен о вашем запросе",
                 }
             )
             self.clients_asks_help[client] = message
-            await self.notify_connect_to_operators(client)
+            await self.connect_request_to_operators(client)
             return True
         # Проверка на остальные команды в боте
         for question, response in triggers_bot.items():
@@ -451,6 +438,16 @@ class WebsocketManager:
                 type_message=TypeMessage.media.value,
                 file_url=file_url,
                 mime_type=mime_type,
+            )
+
+    # Поправить логику, ведь на фронте вроде мы это ловим и закрываем чат полностью у оператора
+    async def notify_disconnect_to_operators(self, client: str):
+        for operator in self.dialog_data.keys():
+            await self.operators[operator].send_json(
+                {
+                    "type": "notify_disconnect",
+                    "from": client,
+                }
             )
 
 

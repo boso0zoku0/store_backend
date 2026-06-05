@@ -43,11 +43,12 @@ async def operator_ws(
             log.info(f"🔍 ПОЛУЧЕНО: {data}")
 
             msg_type = data.get("type")
-            if msg_type == "notify_connect_to_client":
-                await manager.notify_connect_to_client(
-                    client=data["to"], operator=data["from"]
+            if msg_type == "accept_client":
+                await manager.connect_confirm_to_client(
+                    operator=data["from"],
+                    client=data["to"],
                 )
-            elif "file_url" in data or msg_type == "media":
+            if "file_url" in data or msg_type == "media":
                 await broker.publish(
                     message={
                         "type": "media",
@@ -64,9 +65,6 @@ async def operator_ws(
             elif msg_type == "operator_message" or (
                 msg_type is None and "message" in data
             ):
-                log.info(
-                    f"💬 Сообщение от {data['from']} для {data['to']}: {data.get('message')}"
-                )
                 await manager.send_to_client(
                     session=session,
                     operator=data["from"],
@@ -113,10 +111,7 @@ async def clients_ws(
     client: str,
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    print("ВОШЛИ в функцию")
     await websocket.accept()
-    print("Accept выполнен")
-
     user = await get_user_from_cookies(websocket, session)
 
     await manager.connect_client(
@@ -137,9 +132,8 @@ async def clients_ws(
             handler_bot = await manager.sender_bot(
                 client=client,
                 message=data["message"],
-                session=session,
-                websocket=websocket,
             )
+
             if not handler_bot and "to" in data:
                 log.info(f"data: {data['from']} ; {data['message']}")
                 await manager.send_to_operator(
@@ -148,10 +142,11 @@ async def clients_ws(
                     operator=data["to"],  # ← 3. operator
                     message=data["message"],  # ← 4. message
                 )
+
             # elif not handler_bot:
             #     log.info("Кликает по ответу бота")
 
-            if "file_url" in data:
+            elif "file_url" in data:
                 await broker.publish(
                     message={
                         "from": data["from"],

@@ -143,6 +143,6 @@ async def parse(msg):
         try:
             return json.loads(msg)
         except json.JSONDecodeError:
-            return {"message": msg, "client": "Anna"}
+            return {"message": msg}
     else:
         return msg
