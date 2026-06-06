@@ -72,8 +72,9 @@ class WebsocketManager:
         message: str,
         session: AsyncSession,
     ):
+
         now = datetime.now()
-        if self.users.get(from_url_id) is not None:
+        if to_url_id in self.users[from_url_id]:
             await self.users[to_url_id].send_json(
                 {
                     "from_url_id": from_url_id,

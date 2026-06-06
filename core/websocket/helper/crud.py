@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, WebSocketException
 from sqlalchemy import select, or_, and_, insert
@@ -8,39 +9,34 @@ from starlette.websockets import WebSocket
 
 from core import db_helper
 from core.models import WebsocketMessageHistory, WebsocketConnections, Users
-from core.models.websock_msg import TypeMessage
 from core.users.crud import get_user_by_cookie
 
 
 async def get_user_dialog(
     request: Request,
     session: AsyncSession = Depends(db_helper.session_dependency),
-    username: str | None = None,
+    client: str | None = None,
     operator: str | None = None,
 ):
-    user = await get_user_by_cookie(session=session, request=request)
+    time_range = datetime.now(timezone.utc) - timedelta(days=30)
 
     # Базовый запрос
-    stmt = select(WebsocketMessageHistory).where(
-        or_(
-            WebsocketMessageHistory.to_user_id == user["user_id"],
-            WebsocketMessageHistory.from_user_id == user["user_id"],
-        ),
-    )
-    # кейс для оператора - он запрашивает сообщения для username и operator
-    if username is not None and operator is not None:
-        stmt = stmt.where(
+    stmt = (
+        select(WebsocketMessageHistory)
+        .where(
+            WebsocketMessageHistory.created_at > time_range,
             and_(
-                WebsocketMessageHistory.client == username,
                 WebsocketMessageHistory.operator == operator,
-            )
+                WebsocketMessageHistory.client == client,
+            ),
         )
-
-    stmt = stmt.limit(100)
+        .order_by(WebsocketMessageHistory.created_at)
+    )
     result = await session.execute(stmt)
-    msg = result.scalars().all()
+    dialog_history = result.scalars().all()
+    print(f"dialog_history: {dialog_history}")
 
-    return msg
+    return dialog_history
 
 
 async def insert_ws_connections(
@@ -66,7 +62,7 @@ async def insert_ws_connections(
 
 async def insert_ws_message_history(
     message: str,
-    type_message: TypeMessage,
+    type_message: str,
     file_url: str | None = None,
     mime_type: str | None = None,
     from_user_id: int | None = None,

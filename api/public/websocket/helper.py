@@ -92,16 +92,14 @@ async def operator_ws(
 @router.get("/get-user-dialog")
 async def show_user_dialog(
     request: Request,
-    operator: str | None = Query(
-        None, description="для оператора, чтобы запросить диалог с конкретным клиентом"
-    ),
-    username: str | None = Query(None, description="имя клиента для фильтрации"),
+    operator: str | None = Query(None),
+    client: str | None = Query(None, description="имя клиента для фильтрации"),
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    if username is None:
-        return await get_user_dialog(session=session, request=request)
+    if operator is None:
+        return await get_user_dialog(session=session, request=request, client=client)
     return await get_user_dialog(
-        session=session, username=username, operator=operator, request=request
+        session=session, client=client, operator=operator, request=request
     )
 
 
@@ -137,10 +135,10 @@ async def clients_ws(
             if not handler_bot and "to" in data:
                 log.info(f"data: {data['from']} ; {data['message']}")
                 await manager.send_to_operator(
-                    session=session,  # ← 1. session
-                    client=data["from"],  # ← 2. client
-                    operator=data["to"],  # ← 3. operator
-                    message=data["message"],  # ← 4. message
+                    session=session,
+                    client=data["from"],
+                    operator=data["to"],
+                    message=data["message"],
                 )
 
             # elif not handler_bot:

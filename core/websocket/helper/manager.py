@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket
 
 from core.models import PendingMessages
-from core.models.websock_msg import TypeMessage
 from core.websocket.helper.crud import (
     insert_ws_connections,
     insert_ws_message_history,
@@ -70,7 +69,7 @@ class WebsocketManager:
         is_advertising: bool = False,
     ):
         self.clients[client] = websocket
-        await self.init_communication_with_client(client)
+        # await self.init_communication_with_client(client)
 
         if not is_advertising:
             await insert_ws_connections(
@@ -148,7 +147,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.client.value,
+                type_message="client",
             )
         else:
             await self.operators[operator].send_json(
@@ -169,7 +168,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.client.value,
+                type_message="client",
             )
             log.info(f"Сообщение отправлено оператору: {operator}")
 
@@ -199,7 +198,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.operator.value,
+                type_message="operator",
             )
 
             trigger_disconnect: str = "У вас остались вопросы?"
@@ -283,7 +282,7 @@ class WebsocketManager:
             del self.dialog_data[operator][client]
             await insert_ws_message_history(
                 message=message,
-                type_message=TypeMessage.client.value,
+                type_message="client",
                 from_user_id=from_user_id,
                 client=client,
                 operator=operator,
@@ -291,12 +290,12 @@ class WebsocketManager:
             )
 
     async def sender_bot(self, client: str, message: str):
-        triggers_bot = {
-            "View the movie catalog": lambda: get_list_games(),
-            "View the genre catalog": lambda: get_list_genres(),
-            "Find out the creator of the website": "The creator comes from a small town. The site was created in 2026 as part of a single developer",
-            "Call the operator with command - 'help me'": "The operator is already rushing to you",
-        }
+        # triggers_bot = {
+        #     "View the movie catalog": lambda: get_list_games(),
+        #     "View the genre catalog": lambda: get_list_genres(),
+        #     "Find out the creator of the website": "The creator comes from a small town. The site was created in 2026 as part of a single developer",
+        #     "Call the operator with command - 'help me'": "The operator is already rushing to you",
+        # }
         triggers_operator = {"help me", "call the operator"}
         if any(trigger in message for trigger in triggers_operator):
             await self.clients[client].send_json(
@@ -309,19 +308,19 @@ class WebsocketManager:
             await self.connect_request_to_operators(client)
             return True
         # Проверка на остальные команды в боте
-        for question, response in triggers_bot.items():
-            if question in message:
-                if callable(response):
-                    answer = await response()
-                else:
-                    answer = response
-                await self.clients[client].send_json(
-                    {
-                        "type": "bot_message",
-                        "message": answer,
-                    }
-                )
-                return True
+        # for question, response in triggers_bot.items():
+        #     if question in message:
+        #         if callable(response):
+        #             answer = await response()
+        #         else:
+        #             answer = response
+        #         await self.clients[client].send_json(
+        #             {
+        #                 "type": "bot_message",
+        #                 "message": answer,
+        #             }
+        #         )
+        #         return True
         return False
 
     async def init_communication_with_client(self, client: str):
@@ -364,7 +363,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.media.value,
+                type_message="media",
                 file_url=file_url,
                 mime_type=mime_type,
             )
@@ -388,7 +387,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.media.value,
+                type_message="media",
                 file_url=file_url,
                 mime_type=mime_type,
             )
@@ -411,7 +410,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.media.value,
+                type_message="media",
                 file_url=file_url,
                 mime_type=mime_type,
             )
@@ -435,7 +434,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message=TypeMessage.media.value,
+                type_message="media",
                 file_url=file_url,
                 mime_type=mime_type,
             )
@@ -449,6 +448,7 @@ class WebsocketManager:
                     "from": client,
                 }
             )
+            del self.dialog_data[operator][client]
 
 
 manager = WebsocketManager()

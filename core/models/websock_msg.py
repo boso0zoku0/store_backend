@@ -22,14 +22,6 @@ from sqlalchemy import (
 from core.models import Users
 
 
-class TypeMessage(enum.Enum):
-    system = "system"
-    bot = "bot"
-    operator = "operator"
-    client = "client"
-    media = "media"
-
-
 class WebsocketMessageHistory(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),  # ← PostgreSQL UUID тип
@@ -48,9 +40,7 @@ class WebsocketMessageHistory(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     file_url: Mapped[str] = mapped_column(nullable=True)
     mime_type: Mapped[str] = mapped_column(nullable=True)
-    type_message: Mapped[TypeMessage] = mapped_column(
-        Enum(TypeMessage, name="type_message"), nullable=False
-    )
+    type_message: Mapped[str] = mapped_column(nullable=False)
     is_resolved: Mapped[bool] = mapped_column(nullable=True, server_default=false())
     created_at: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),
