@@ -60,6 +60,11 @@ async def users_ws(
                     url_id=data["url_id"],
                     session=session,
                 )
+            elif data and data["type"] == "request_is_new_message":
+                await manager.has_unread_messages(
+                    url_id=data["url_id"],
+                    session=session,
+                )
 
             elif data and data["type"] == "request_dialog_history":
                 await manager.get_dialog(
@@ -81,11 +86,6 @@ async def users_ws(
                 await manager.get_last_message(
                     from_url_id=data["from_url_id"],
                     to_url_id=data["to_url_id"],
-                    session=session,
-                )
-            elif data and data["type"] == "request_is_new_message":
-                await manager.has_unread_messages(
-                    url_id=data["url_id"],
                     session=session,
                 )
 

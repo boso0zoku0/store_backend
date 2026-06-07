@@ -74,7 +74,18 @@ class WebsocketManager:
     ):
 
         now = datetime.now()
-        if to_url_id in self.users[from_url_id]:
+
+        await insert_ws_friendly_message(
+            from_url_id=from_url_id,
+            to_url_id=to_url_id,
+            sender=sender,
+            recipient=recipient,
+            message=message,
+            type_message="client",
+            session=session,
+        )
+
+        if to_url_id in self.users:
             await self.users[to_url_id].send_json(
                 {
                     "from_url_id": from_url_id,
@@ -86,7 +97,6 @@ class WebsocketManager:
                     "created_at": str(now),
                 }
             )
-
         await self.users[from_url_id].send_json(
             {
                 "from_url_id": from_url_id,
@@ -97,15 +107,6 @@ class WebsocketManager:
                 "message": message,
                 "created_at": str(now),
             }
-        )
-        await insert_ws_friendly_message(
-            from_url_id=from_url_id,
-            to_url_id=to_url_id,
-            sender=sender,
-            recipient=recipient,
-            message=message,
-            type_message="client",
-            session=session,
         )
 
     def disconnect(self, url_id: str):
