@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     await broker.start()
     print("✅ Broker connected")
     yield
-    await broker.close()
+    await broker.stop()
     print("❌ Broker closed")
 
 
