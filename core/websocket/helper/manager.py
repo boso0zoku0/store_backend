@@ -139,7 +139,7 @@ class WebsocketManager:
         operator: str,
         message: str,
     ):
-        if operator == "":
+        if operator not in self.operators:
             from_user_id = await get_user_by_name(client, session)
             await insert_ws_message_history(
                 session=session,
@@ -147,7 +147,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message="client",
+                type="client",
             )
         else:
             await self.operators[operator].send_json(
@@ -168,7 +168,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message="client",
+                type="client",
             )
             log.info(f"Сообщение отправлено оператору: {operator}")
 
@@ -198,7 +198,7 @@ class WebsocketManager:
                 client=client,
                 operator=operator,
                 message=message,
-                type_message="operator",
+                type="operator",
             )
 
             trigger_disconnect: str = "У вас остались вопросы?"
@@ -282,11 +282,12 @@ class WebsocketManager:
             del self.dialog_data[operator][client]
             await insert_ws_message_history(
                 message=message,
-                type_message="client",
+                type="client",
                 from_user_id=from_user_id,
                 client=client,
                 operator=operator,
                 is_resolved=True,
+                session=session,
             )
 
     async def sender_bot(self, client: str, message: str):
@@ -355,19 +356,19 @@ class WebsocketManager:
         mime_type: str,
         message: str = "",
     ):
-        if client == "":
-            from_user_id = await get_user_by_name(operator, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type_message="media",
-                file_url=file_url,
-                mime_type=mime_type,
-            )
-        else:
+        from_user_id = await get_user_by_name(operator, session)
+        await insert_ws_message_history(
+            session=session,
+            from_user_id=from_user_id,
+            to_user_id=await get_user_by_name(client, session) if client else None,
+            client=client,
+            operator=operator,
+            message=message,
+            type="media",
+            file_url=file_url,
+            mime_type=mime_type,
+        )
+        if client:
             await self.clients[client].send_json(
                 {
                     "type": "media",
@@ -377,19 +378,6 @@ class WebsocketManager:
                     "file_url": file_url,
                     "mime_type": mime_type,
                 }
-            )
-            from_user_id = await get_user_by_name(operator, session)
-            to_user_id = await get_user_by_name(client, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                to_user_id=to_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type_message="media",
-                file_url=file_url,
-                mime_type=mime_type,
             )
 
     async def send_media_to_operator(
@@ -401,20 +389,29 @@ class WebsocketManager:
         mime_type: str,
         message: str = "",
     ):
-
-        if operator == "":
-            from_user_id = await get_user_by_name(client, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type_message="media",
-                file_url=file_url,
-                mime_type=mime_type,
-            )
-        else:
+        from_user_id = await get_user_by_name(client, session)
+        await self.clients[client].send_json(
+            {
+                "type": "media",
+                "from": client,
+                "to": operator,
+                "message": message,
+                "file_url": file_url,
+                "mime_type": mime_type,
+            }
+        )
+        await insert_ws_message_history(
+            session=session,
+            from_user_id=from_user_id,
+            to_user_id=await get_user_by_name(operator, session) if operator else None,
+            client=client,
+            operator=operator,
+            message=message,
+            type="media",
+            file_url=file_url,
+            mime_type=mime_type,
+        )
+        if operator:
             await self.operators[operator].send_json(
                 {
                     "type": "media",
@@ -424,19 +421,6 @@ class WebsocketManager:
                     "file_url": file_url,
                     "mime_type": mime_type,
                 }
-            )
-            from_user_id = await get_user_by_name(client, session)
-            to_user_id = await get_user_by_name(operator, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                to_user_id=to_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type_message="media",
-                file_url=file_url,
-                mime_type=mime_type,
             )
 
     # Поправить логику, ведь на фронте вроде мы это ловим и закрываем чат полностью у оператора

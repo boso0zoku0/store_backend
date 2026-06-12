@@ -1,19 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
-from redis import Redis
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
 from core.models.products import Filters
-from core.users.crud import get_current_auth_user
 from products.crud import (
     show_products,
     show_product,
     search_product,
     find_product_by_filters,
 )
-from core.config import settings
 
 
 router = APIRouter(

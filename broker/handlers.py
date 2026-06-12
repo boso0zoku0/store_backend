@@ -1,3 +1,5 @@
+import json
+
 from core import db_helper
 from core.websocket.helper.manager import manager
 from broker.config import (
@@ -19,32 +21,36 @@ from broker.config import (
 #         )
 
 
-@broker.subscriber(queue=queue_clients, exchange=exchange, routing_key="clients")
+@broker.subscriber(queue=queue_clients, exchange=exchange)
 async def handler_from_client_to_operator(
     msg: dict | str | bytes,
 ):
     async with db_helper.session_factory() as session:
-        if "file_url" in msg:
+        print(f"Хендлер получил: {msg.keys()}")
+        print(f"   file_url: {msg.get('file_url')}")
+        file_url = msg.get("file_url") or ""
+        if file_url:
             await manager.send_media_to_operator(
                 session=session,
-                client=msg["from"],
-                operator=msg["to"],
+                client=msg.get("client"),
+                operator=msg.get("operator"),
+                message=msg.get("message"),
+                mime_type=msg.get("mime_type"),
+                file_url=msg.get("file_url"),
+            )
+
+        elif not file_url:
+            await manager.send_to_operator(
+                session=session,
+                client=msg["client"],
+                operator=msg["operator"],
                 message=msg["message"],
-                mime_type=msg["mime_type"],
-                file_url=msg["file_url"],
             )
         # if msg["type"] == "disconnect_client":  напрямую из endpoint вызываю, поэтому убрал
         #         #     await manapger.disconnect_client(client=msg["from"])
-        else:
-            await manager.send_to_operator(
-                session=session,  # ← 1. session
-                client=msg["from"],  # ← 2. client
-                operator=msg["to"],  # ← 3. operator
-                message=msg["message"],  # ← 4. message
-            )
 
 
-@broker.subscriber(queue=queue_operators, exchange=exchange, routing_key="operators")
+@broker.subscriber(queue=queue_operators, exchange=exchange)
 async def handler_from_operator_to_client(msg: dict):
     async with db_helper.session_factory() as session:
         if "file_url" in msg:

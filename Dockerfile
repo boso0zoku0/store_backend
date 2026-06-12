@@ -12,7 +12,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
-
 COPY . .
 
 EXPOSE 8000

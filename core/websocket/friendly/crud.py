@@ -11,10 +11,10 @@ async def get_user_by_url_id_or_id(
     url_id: str | None = None,
 ):
     stmt = select(Users.id, Users.name, Users.url_id)
-    if url_id is not None:
+    if url_id:
         stmt = stmt.where(Users.url_id == url_id)
 
-    elif id is not None:
+    elif id:
         stmt = stmt.where(Users.id == id)
     result = await session.execute(stmt)
     res = result.mappings().first()

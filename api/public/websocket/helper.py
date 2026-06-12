@@ -1,5 +1,14 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    Request,
+    UploadFile,
+    File,
+)
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from broker.config import broker, queue_operators, exchange, queue_clients
@@ -9,6 +18,9 @@ from core.websocket.helper.crud import get_user_dialog, get_user_from_cookies
 from core.websocket.helper.manager import manager
 import logging
 
+
+from services.s3.s3_client import s3_client
+
 log = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -16,6 +28,14 @@ router = APIRouter()
 @router.get("/get-clients")
 async def clients():
     return await manager.get_clients()
+
+
+@router.post("/upload/")
+async def upload_media(
+    file: UploadFile = File(...),
+):
+    result = await s3_client.upload_file(file)
+    return result
 
 
 @router.websocket("/operator/{operator}")
@@ -40,7 +60,6 @@ async def operator_ws(
     try:
         while True:
             data: dict = await websocket.receive_json()
-            log.info(f"🔍 ПОЛУЧЕНО: {data}")
 
             msg_type = data.get("type")
             if msg_type == "accept_client":
@@ -48,19 +67,18 @@ async def operator_ws(
                     operator=data["from"],
                     client=data["to"],
                 )
-            if "file_url" in data or msg_type == "media":
+            elif msg_type == "file_url":
                 await broker.publish(
                     message={
-                        "type": "media",
-                        "from": data["from"],
-                        "to": data["to"],
+                        "operator": data["from"],
+                        "client": data["to"],
                         "message": data.get("message", ""),
-                        "mime_type": data["mime_type"],
-                        "file_url": data["file_url"],
+                        "mime_type": data.get("mime_type", ""),
+                        "file_url": data.get("file_url", ""),
                     },
                     queue=queue_operators,
                     exchange=exchange,
-                    routing_key="operators",
+                    # routing_key="operators",
                 )
             elif msg_type == "operator_message" or (
                 msg_type is None and "message" in data
@@ -96,8 +114,6 @@ async def show_user_dialog(
     client: str | None = Query(None, description="имя клиента для фильтрации"),
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    if operator is None:
-        return await get_user_dialog(session=session, request=request, client=client)
     return await get_user_dialog(
         session=session, client=client, operator=operator, request=request
     )
@@ -126,36 +142,34 @@ async def clients_ws(
     try:
         while True:
             data = await websocket.receive_json()
-
             handler_bot = await manager.sender_bot(
                 client=client,
                 message=data["message"],
             )
 
-            if not handler_bot and "to" in data:
-                log.info(f"data: {data['from']} ; {data['message']}")
-                await manager.send_to_operator(
-                    session=session,
-                    client=data["from"],
-                    operator=data["to"],
-                    message=data["message"],
-                )
-
-            # elif not handler_bot:
-            #     log.info("Кликает по ответу бота")
-
-            elif "file_url" in data:
+            if not handler_bot and "to" in data and not "file_url" in data:
                 await broker.publish(
                     message={
-                        "from": data["from"],
-                        "to": data["to"],
+                        "client": data["from"],
+                        "operator": data["to"],
                         "message": data.get("message", ""),
-                        "mime_type": data["mime_type"],
-                        "file_url": data["file_url"],
                     },
                     queue=queue_clients,
                     exchange=exchange,
-                    routing_key="clients",
+                )
+            # elif not handler_bot:
+            #     log.info("Кликает по ответу бота")
+            elif "file_url" in data:
+                await broker.publish(
+                    message={
+                        "client": data["from"],
+                        "operator": data["to"],
+                        "message": data.get("message", ""),
+                        "file_url": data.get("file_url", ""),
+                        "mime_type": data.get("mime_type", ""),
+                    },
+                    queue=queue_clients,
+                    exchange=exchange,
                 )
 
     except WebSocketDisconnect:

@@ -1,12 +1,8 @@
 import json
 from datetime import datetime, timedelta, timezone
-
-from fastapi import Depends, WebSocketException
-from sqlalchemy import select, or_, and_, insert
+from fastapi import Depends, WebSocketException, WebSocket, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.requests import Request
-from starlette.websockets import WebSocket
-
+from sqlalchemy import select, insert, or_, and_, desc, func, case, update, asc
 from core import db_helper
 from core.models import WebsocketMessageHistory, WebsocketConnections, Users
 from core.users.crud import get_user_by_cookie
@@ -19,22 +15,51 @@ async def get_user_dialog(
     operator: str | None = None,
 ):
     time_range = datetime.now(timezone.utc) - timedelta(days=30)
-
-    # Базовый запрос
+    # Пока что отвечаю на вопрос мое ли сообщение только от лица клиента, у оператора будет либо свой api либо этот доработать
+    client_data = await get_user_by_cookie(session, request)
     stmt = (
-        select(WebsocketMessageHistory)
+        select(
+            WebsocketMessageHistory,
+            case(
+                (WebsocketMessageHistory.from_user_id == client_data["user_id"], True),
+                else_=False,
+            ).label("is_own"),
+        )
         .where(
             WebsocketMessageHistory.created_at > time_range,
-            and_(
-                WebsocketMessageHistory.operator == operator,
-                WebsocketMessageHistory.client == client,
+            or_(
+                # 1. Обычные сообщения (и operator, и client совпадают)
+                and_(
+                    WebsocketMessageHistory.operator == operator,
+                    WebsocketMessageHistory.client == client,
+                ),
+                # 2. Медиа от клиента (operator пуст, client совпадает)
+                and_(
+                    WebsocketMessageHistory.operator == "",
+                    WebsocketMessageHistory.client == client,
+                ),
+                # 3. Медиа от оператора (client пуст, operator совпадает)
+                and_(
+                    WebsocketMessageHistory.client == "",
+                    WebsocketMessageHistory.operator == operator,
+                ),
+                # 4. Сообщения в пустой диалог (если operator ещё не назначен)
+                and_(
+                    WebsocketMessageHistory.operator == "",
+                    WebsocketMessageHistory.client == client,
+                    WebsocketMessageHistory.type == "client",
+                ),
             ),
         )
-        .order_by(WebsocketMessageHistory.created_at)
+        .order_by(asc(WebsocketMessageHistory.created_at))
     )
     result = await session.execute(stmt)
-    dialog_history = result.scalars().all()
-    print(f"dialog_history: {dialog_history}")
+    dialog_history = [
+        {**row[0].__dict__, "is_own": row[1]}  # все поля сообщения  # добавляем is_own
+        for row in result.all()
+    ]
+    for msg in dialog_history:
+        msg.pop("_sa_instance_state", None)
 
     return dialog_history
 
@@ -61,8 +86,9 @@ async def insert_ws_connections(
 
 
 async def insert_ws_message_history(
+    session: AsyncSession,
     message: str,
-    type_message: str,
+    type: str,
     file_url: str | None = None,
     mime_type: str | None = None,
     from_user_id: int | None = None,
@@ -70,13 +96,12 @@ async def insert_ws_message_history(
     client: str | None = None,
     operator: str | None = None,
     is_resolved: bool = False,
-    session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     stmt = insert(WebsocketMessageHistory).values(
         from_user_id=from_user_id,
         to_user_id=to_user_id,
         message=message,
-        type_message=type_message,
+        type=type,
         client=client,
         operator=operator,
         file_url=file_url,

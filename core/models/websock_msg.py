@@ -40,7 +40,7 @@ class WebsocketMessageHistory(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     file_url: Mapped[str] = mapped_column(nullable=True)
     mime_type: Mapped[str] = mapped_column(nullable=True)
-    type_message: Mapped[str] = mapped_column(nullable=False)
+    type: Mapped[str] = mapped_column(nullable=True)
     is_resolved: Mapped[bool] = mapped_column(nullable=True, server_default=false())
     created_at: Mapped[TIMESTAMP] = mapped_column(
         TIMESTAMP(timezone=True),

@@ -1,4 +1,3 @@
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -20,13 +19,15 @@ services:
     depends_on:
       - postgres
 
-# Настроить AMQPS
+  # Настроить AMQPS
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_store
-    ports:
-      - "127.0.0.1:5672:5672"
-      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 
   nginx:
@@ -78,7 +79,10 @@ services:
     container_name: backend_app
     env_file:
       - .env
-#    Временно открыл порты для проверки работы вебсокетов
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    #    Временно открыл порты для проверки работы вебсокетов
     ports:
       - "8000:8000"
   frontend_app:
