@@ -61,13 +61,12 @@ async def operator_ws(
         while True:
             data: dict = await websocket.receive_json()
 
-            msg_type = data.get("type")
-            if msg_type == "accept_client":
+            if data["type"] == "accept_client":
                 await manager.connect_confirm_to_client(
                     operator=data["from"],
                     client=data["to"],
                 )
-            elif msg_type == "file_url":
+            elif data["type"] == "media":
                 await broker.publish(
                     message={
                         "operator": data["from"],
@@ -80,8 +79,8 @@ async def operator_ws(
                     exchange=exchange,
                     # routing_key="operators",
                 )
-            elif msg_type == "operator_message" or (
-                msg_type is None and "message" in data
+            elif data["type"] == "operator" or (
+                data["type"] is None and "message" in data
             ):
                 await manager.send_to_client(
                     session=session,
@@ -127,7 +126,6 @@ async def clients_ws(
 ):
     await websocket.accept()
     user = await get_user_from_cookies(websocket, session)
-
     await manager.connect_client(
         session=session,
         websocket=websocket,
@@ -138,7 +136,7 @@ async def clients_ws(
         is_active=True,
         is_advertising=True,
     )
-    log.info(f"Клиент {client} подключился")
+    operator = None
     try:
         while True:
             data = await websocket.receive_json()
@@ -147,9 +145,10 @@ async def clients_ws(
                 message=data["message"],
             )
 
-            if not handler_bot and "to" in data and not "file_url" in data:
+            if data["type"] == "client" and not handler_bot:
                 await broker.publish(
                     message={
+                        "type": "client",
                         "client": data["from"],
                         "operator": data["to"],
                         "message": data.get("message", ""),
@@ -157,11 +156,12 @@ async def clients_ws(
                     queue=queue_clients,
                     exchange=exchange,
                 )
-            # elif not handler_bot:
-            #     log.info("Кликает по ответу бота")
-            elif "file_url" in data:
+                if operator is None and data.get("to"):
+                    operator = data["to"]
+            elif data["type"] == "media":
                 await broker.publish(
                     message={
+                        "type": "media",
                         "client": data["from"],
                         "operator": data["to"],
                         "message": data.get("message", ""),
@@ -171,20 +171,16 @@ async def clients_ws(
                     queue=queue_clients,
                     exchange=exchange,
                 )
-
+            # elif not handler_bot:
+            #     log.info("Кликает по ответу бота")
     except WebSocketDisconnect:
+        await manager.disconnect_client(
+            client=client,
+            operator=operator,
+        )
         await session.execute(
             update(WebsocketConnections)
             .where(WebsocketConnections.username == client)
             .values(is_active=False, disconnected_at=datetime.now(tz=timezone.utc))
         )
         await session.commit()
-        """Через брокер disconnect_client не вызывается почему то. напрямую всё ок"""
-        await manager.disconnect_client(client=client)
-
-    # await broker.publish(
-    #     message={
-    #         "from": client,
-    #         "type": "disconnect_client",
-    #     }
-    # )

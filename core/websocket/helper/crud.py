@@ -38,6 +38,10 @@ async def get_user_dialog(
                     WebsocketMessageHistory.operator == "",
                     WebsocketMessageHistory.client == client,
                 ),
+                and_(
+                    WebsocketMessageHistory.operator.is_(None),
+                    WebsocketMessageHistory.client == client,
+                ),
                 # 3. Медиа от оператора (client пуст, operator совпадает)
                 and_(
                     WebsocketMessageHistory.client == "",

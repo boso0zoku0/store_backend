@@ -1,20 +1,27 @@
 import datetime as dt
 import enum
 import uuid
-from sqlalchemy import func, ForeignKey, String, Integer, DateTime, Enum, UUID, false
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import JSONB
-from core.config import Base
-from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy import (
+    func,
+    ForeignKey,
+    String,
+    Integer,
+    DateTime,
+    Enum,
+    UUID,
+    false,
+    ARRAY,
+    text,
     Text,
     Identity,
     create_engine,
     CheckConstraint,
-    func,
-    text,
     BigInteger,
 )
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from core.config import Base
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 
 
 class WsFriendlyTypeMessage(enum.Enum):

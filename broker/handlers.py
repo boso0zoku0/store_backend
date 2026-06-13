@@ -26,10 +26,7 @@ async def handler_from_client_to_operator(
     msg: dict | str | bytes,
 ):
     async with db_helper.session_factory() as session:
-        print(f"Хендлер получил: {msg.keys()}")
-        print(f"   file_url: {msg.get('file_url')}")
-        file_url = msg.get("file_url") or ""
-        if file_url:
+        if msg["type"] == "media":
             await manager.send_media_to_operator(
                 session=session,
                 client=msg.get("client"),
@@ -38,22 +35,19 @@ async def handler_from_client_to_operator(
                 mime_type=msg.get("mime_type"),
                 file_url=msg.get("file_url"),
             )
-
-        elif not file_url:
+        elif msg["type"] == "client":
             await manager.send_to_operator(
                 session=session,
                 client=msg["client"],
                 operator=msg["operator"],
                 message=msg["message"],
             )
-        # if msg["type"] == "disconnect_client":  напрямую из endpoint вызываю, поэтому убрал
-        #         #     await manapger.disconnect_client(client=msg["from"])
 
 
 @broker.subscriber(queue=queue_operators, exchange=exchange)
 async def handler_from_operator_to_client(msg: dict):
     async with db_helper.session_factory() as session:
-        if "file_url" in msg:
+        if msg["type"] == "media":
             await manager.send_media_to_client(
                 session=session,
                 operator=msg["from"],
@@ -62,7 +56,7 @@ async def handler_from_operator_to_client(msg: dict):
                 mime_type=msg["mime_type"],
                 file_url=msg["file_url"],
             )
-        elif "message" in msg:
+        elif msg["type"] == "operator":
             await manager.send_to_client(
                 session=session,
                 operator=msg["from"],
