@@ -1,4 +1,5 @@
 from fastapi import WebSocket
+from services.redis.config import redis_client
 
 
 class WebsocketManager:
@@ -14,7 +15,6 @@ class WebsocketManager:
         username: str,
         product_name: str,
     ):
-        print("BROADCAST")
         for user_id, websocket in self.users.items():
             await websocket.send_json(
                 {

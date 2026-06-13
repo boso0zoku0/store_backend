@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -13,6 +14,7 @@ from core.websocket.helper.crud import (
     insert_ws_message_history,
     get_user_by_name,
 )
+from services.redis.config import redis_client
 
 log = logging.getLogger(__name__)
 
@@ -29,33 +31,30 @@ class WebsocketManager:
     def __init__(self):
         self.operators: dict[str, WebSocket] = {}
         self.clients: dict[str, WebSocket] = {}
-        self.clients_asks_help: dict = {}
-        # {'operator1': {'client1', '2020-10-03:14:50:10'}
+        self.redis = redis_client
+        self.clients_ask = "chats:helper:clients_ask"
+        self.visited_chat = "chats:helper:visit:chat"
+        self.dialogs_info = "chats:helper:dialogs_info"
+        # {
+        # path: chats:helper:clients_ask
+        #   'operator1': {
+        #       'client1':'2020-10-03:14:50:10', 'client2':'2020-11-03:14:50:10',
+        #   },
+        #
+        # path chats:helper:dialogs_info
+        # {
+        #   'operator1': {
+        #       'client1': '19.05.2000:14:44',
+        #       'client2': '19.01.2005:16:14',
+        #     }
+        # 'operator2': {
+        #       'client3': '19.05.2000:14:44',
+        #       'client4': '19.01.2005:16:14',
+        #     }
+        # }
         self.dialog_data: defaultdict[str, dict[str, datetime]] = defaultdict(dict)
+
         self._background_task = None
-
-    async def start_timeout_checker(self, operator: str, client: str):
-        """Запускаем фоновую проверку таймаутов"""
-        if self._background_task is None:
-            self._background_task = asyncio.create_task(
-                self._check_timeouts(operator, client)
-            )
-
-    async def _check_timeouts(self, operator: str, client: str):
-        while True:
-            try:
-                if not self.dialog_data[operator].get(client):
-                    break
-                await asyncio.sleep(10)  # Проверка каждые 10 секунд
-                await self._check_last_msg_operator_with_client(operator, client)
-            except Exception as e:
-                print(f"Error in timeout checker: {e}")
-
-    async def _check_last_msg_operator_with_client(self, operator: str, client: str):
-        now = datetime.now()
-        last_msg_time = self.dialog_data[operator][client]
-        if now > last_msg_time + timedelta(seconds=10):
-            await self.disconnect_client(client)
 
     async def connect_client(
         self,
@@ -69,42 +68,35 @@ class WebsocketManager:
         is_advertising: bool = False,
     ):
         self.clients[client] = websocket
-        # await self.init_communication_with_client(client)
-
-        if not is_advertising:
-            await insert_ws_connections(
-                session=session,
-                username=client,
-                user_id=user_id,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                is_active=is_active,
-                connection_type="client",
-            )
-        else:
-            await insert_ws_connections(
-                session=session,
-                username=client,
-                user_id=user_id,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                is_active=is_active,
-                connection_type="client",
-            )
-            stmt = (
-                select(PendingMessages)
-                .where(PendingMessages.user_id == user_id)
-                .limit(1)
-            )
-            res = await session.execute(stmt)
-            message = res.scalar_one_or_none()
-            if not message:
-                return
-            await self.advertising_to_client(
-                client=client,
-                message=message.message,
-            )
-            await session.delete(message)
+        await insert_ws_connections(
+            session=session,
+            username=client,
+            user_id=user_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            is_active=is_active,
+            connection_type="client",
+        )
+        if await self.redis.hexists(self.visited_chat, client):
+            return
+        await self.init_communication_with_client(client)
+        await self.redis.hset(self.visited_chat, client, "1")
+        # Логика с отправкой рекламы в чат, позже доделать
+        # if is_advertising:
+        #     stmt = (
+        #         select(PendingMessages)
+        #         .where(PendingMessages.user_id == user_id)
+        #         .limit(1)
+        #     )
+        #     res = await session.execute(stmt)
+        #     message = res.scalar_one_or_none()
+        #     if not message:
+        #         return
+        #     await self.advertising_to_client(
+        #         client=client,
+        #         message=message.message,
+        #     )
+        #     await session.delete(message)
 
     async def connect_operator(
         self,
@@ -127,10 +119,9 @@ class WebsocketManager:
             is_active=is_active,
             connection_type="operator",
         )
-        log.info(f"✓ Оператор {operator} подключен")
 
     async def get_clients(self):
-        return list(self.clients_asks_help.keys())
+        return await self.redis.hkeys(self.clients_ask)
 
     async def send_to_operator(
         self,
@@ -139,38 +130,40 @@ class WebsocketManager:
         operator: str,
         message: str,
     ):
-        if operator not in self.operators:
-            from_user_id = await get_user_by_name(client, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type="client",
-            )
-        else:
+        # Нужна проверка в случае если оператор уже вышел из чата, клиент пишет исходя из operator.current данных, но не знает, что его уже нет
+        current_operator = None
+        if operator in self.operators:
+            current_operator = operator
             await self.operators[operator].send_json(
                 {
-                    "type": "client_message",
+                    "type": "client",
                     "from": client,
                     "to": operator,
                     "message": message,
                 }
             )
-            self.dialog_data[operator][client] = datetime.now()
-            from_user_id = await get_user_by_name(client, session)
-            to_user_id = await get_user_by_name(operator, session)
-            await insert_ws_message_history(
-                session=session,
-                from_user_id=from_user_id,
-                to_user_id=to_user_id,
-                client=client,
-                operator=operator,
-                message=message,
-                type="client",
+            # self.dialog_data[operator][client] = datetime.now()
+            await self.redis.hset(
+                f"{self.dialogs_info}:{operator}",
+                client,
+                datetime.now().isoformat(),
             )
-            log.info(f"Сообщение отправлено оператору: {operator}")
+        from_user_id = await get_user_by_name(client, session)
+        to_user_id = (
+            await get_user_by_name(operator, session)
+            if operator in self.operators
+            else None
+        )
+
+        await insert_ws_message_history(
+            session=session,
+            from_user_id=from_user_id,
+            to_user_id=to_user_id,
+            client=client,
+            operator=current_operator,
+            message=message,
+            type="client",
+        )
 
     async def send_to_client(
         self,
@@ -180,17 +173,27 @@ class WebsocketManager:
         message: str,
     ):
         try:
-            self.dialog_data[operator][client] = datetime.now()
-            await self.clients[client].send_json(
-                {
-                    "type": "operator_message",
-                    "from": operator,
-                    "to": client,
-                    "message": message,
-                }
-            )
+            if client in self.clients:
+                await self.clients[client].send_json(
+                    {
+                        "type": "operator",
+                        "from": operator,
+                        "to": client,
+                        "message": message,
+                    }
+                )
+                # self.dialog_data[operator][client] = datetime.now()
+                await self.redis.hset(
+                    f"{self.dialogs_info}:{operator}",
+                    client,
+                    datetime.now().isoformat(),
+                )
             from_user_id = await get_user_by_name(operator, session)
-            to_user_id = await get_user_by_name(client, session)
+            to_user_id = (
+                await get_user_by_name(client, session)
+                if client in self.clients
+                else None
+            )
             await insert_ws_message_history(
                 session=session,
                 from_user_id=from_user_id,
@@ -209,29 +212,27 @@ class WebsocketManager:
         except Exception as e:
             log.info(f"✗ Ошибка отправки {operator} -> {client}")
 
-    async def disconnect_client(self, client: str):
+    async def disconnect_client(self, client: str, operator: str):
         try:
             if client in self.clients:
                 self.clients.pop(client)
-            if client in self.clients_asks_help.keys():
-                del self.clients_asks_help[client]
+            if await self.redis.hexists(self.clients_ask, client):
+                await self.redis.hdel(self.clients_ask, client)
                 log.info(f"✓ Клиент {client} удален из self.clients")
-            await self.notify_disconnect_to_operators(client)
-            for operator, clients_dict in self.dialog_data.items():
-                if client in clients_dict:
-                    clients_dict.pop(client)
-                    print(f"ЧТо в dialog_data после pop: {self.dialog_data}")
-
-                    log.info(f"клиент → Удален из оператора {operator}")
+            await self.notify_disconnect_to_operator(client, operator)
+            # del self.dialog_data[operator][client]
+            await self.redis.hdel(f"{self.dialogs_info}:{operator}", client)
+            log.info(f"клиент → Удален из диалога с оператором {operator}")
         except Exception as e:
-            log.error(f"✗ Ошибка при отключении клиента {client}: {e}")
+            log.error(f"✗ Ошибка при отключении клиента {client}: {operator}")
 
     async def connect_request_to_operators(
         self,
         client: str,
     ):
-        busy_operators = set(self.dialog_data.keys())
-        print("busy_operators:", busy_operators)
+        # busy_operators = set(self.dialog_data.keys())
+        busy_operators = await self.redis.hkeys(self.dialogs_info)
+
         for op in self.operators.keys():
             if op not in busy_operators:
                 await self.operators[op].send_json(
@@ -244,7 +245,17 @@ class WebsocketManager:
                 print("busy_operator:", op)
 
     async def connect_confirm_to_client(self, client: str, operator: str):
-        self.dialog_data[operator][client] = datetime.now()
+        # self.dialog_data[operator][client] = datetime.now()
+        await self.redis.hset(
+            f"{self.dialogs_info}:{operator}",
+            client,
+            datetime.now().isoformat(),
+        )
+        await self.redis.hset(
+            f"{self.dialogs_info}:{operator}",
+            client,
+            datetime.now().isoformat(),
+        )
         await self.clients[client].send_json(
             {
                 "type": "connect_confirm",
@@ -264,11 +275,15 @@ class WebsocketManager:
         """Как узнать связку оператора с клиентом в busy_operators - итерироваться по k,v - если v это клиент, значит k - оператор который с ним вел диалог"""
 
         current_time = datetime.now()
-        last_message_time = self.dialog_data[operator][client]
+        # last_message_time = self.dialog_data[operator][client]
+        last_message_time = await self.redis.hget(
+            f"{self.dialogs_info}:{operator}",
+            client,
+        )
         if last_message_time + timedelta(minutes=1) < current_time:
             await self.clients[client].send_json(
                 {
-                    "type": "bot_message",
+                    "type": "bot",
                     "message": "Did you manage to resolve the issue?",
                 }
             )
@@ -279,7 +294,8 @@ class WebsocketManager:
         from_user_id = await get_user_by_name(client, session)
 
         if message == "Yes":
-            del self.dialog_data[operator][client]
+            # del self.dialog_data[operator][client]
+            await self.redis.hdel(f"{self.dialogs_info}:{operator}", client)
             await insert_ws_message_history(
                 message=message,
                 type="client",
@@ -301,11 +317,11 @@ class WebsocketManager:
         if any(trigger in message for trigger in triggers_operator):
             await self.clients[client].send_json(
                 {
-                    "type": "bot_message",
+                    "type": "bot",
                     "message": "Оператор оповещен о вашем запросе",
                 }
             )
-            self.clients_asks_help[client] = message
+            await self.redis.hset(self.clients_ask, client, message)
             await self.connect_request_to_operators(client)
             return True
         # Проверка на остальные команды в боте
@@ -357,10 +373,11 @@ class WebsocketManager:
         message: str = "",
     ):
         from_user_id = await get_user_by_name(operator, session)
+        to_user_id = await get_user_by_name(client, session) if client else None
         await insert_ws_message_history(
             session=session,
             from_user_id=from_user_id,
-            to_user_id=await get_user_by_name(client, session) if client else None,
+            to_user_id=to_user_id,
             client=client,
             operator=operator,
             message=message,
@@ -390,6 +407,7 @@ class WebsocketManager:
         message: str = "",
     ):
         from_user_id = await get_user_by_name(client, session)
+        to_user_id = await get_user_by_name(operator, session) if operator else None
         await self.clients[client].send_json(
             {
                 "type": "media",
@@ -403,7 +421,7 @@ class WebsocketManager:
         await insert_ws_message_history(
             session=session,
             from_user_id=from_user_id,
-            to_user_id=await get_user_by_name(operator, session) if operator else None,
+            to_user_id=to_user_id,
             client=client,
             operator=operator,
             message=message,
@@ -424,15 +442,38 @@ class WebsocketManager:
             )
 
     # Поправить логику, ведь на фронте вроде мы это ловим и закрываем чат полностью у оператора
-    async def notify_disconnect_to_operators(self, client: str):
-        for operator in self.dialog_data.keys():
-            await self.operators[operator].send_json(
-                {
-                    "type": "notify_disconnect",
-                    "from": client,
-                }
+    async def notify_disconnect_to_operator(self, client: str, operator: str):
+        await self.operators[operator].send_json(
+            {
+                "type": "disconnect",
+                "from": client,
+            }
+        )
+
+    async def start_timeout_checker(self, operator: str, client: str):
+        """Запускаем фоновую проверку таймаутов"""
+        if self._background_task is None:
+            self._background_task = asyncio.create_task(
+                self._check_timeouts(operator, client)
             )
-            del self.dialog_data[operator][client]
+
+    async def _check_timeouts(self, operator: str, client: str):
+        while True:
+            try:
+                if not self.redis.hexists(f"{self.dialogs_info}:{operator}", client):
+                    # if not self.dialog_data[operator].get(client):
+                    break
+                await asyncio.sleep(10)  # Проверка каждые 10 секунд
+                await self._check_last_msg_operator_with_client(operator, client)
+            except Exception as e:
+                print(f"Error in timeout checker: {e}")
+
+    async def _check_last_msg_operator_with_client(self, operator: str, client: str):
+        now = datetime.now()
+        # last_msg_time = self.dialog_data[operator][client]
+        last_msg_time = self.redis.hget(f"{self.dialogs_info}:{operator}", client)
+        if now > last_msg_time + timedelta(seconds=10):
+            await self.disconnect_client(client, operator)
 
 
 manager = WebsocketManager()
