@@ -62,7 +62,17 @@ async def users_ws(
                 )
             elif data and data["type"] == "request_is_new_message":
                 await manager.has_unread_messages(
-                    url_id=data["url_id"],
+                    url_id_curr=data["url_id_curr"],
+                    session=session,
+                )
+            elif data and data["type"] == "client_msg":
+                print(data)
+                await manager.send_message(
+                    from_url_id=data["from_url_id"],
+                    to_url_id=data["to_url_id"],
+                    sender=data["sender"],
+                    recipient=data["recipient"],
+                    message=data["message"],
                     session=session,
                 )
 
@@ -72,16 +82,19 @@ async def users_ws(
                     to_url_id=data["to_url_id"],
                     session=session,
                 )
-
-            elif data and data["type"] == "client_msg":
-                await manager.send_message(
-                    from_url_id=data["from_url_id"],
+            elif data["type"] == "in_dialog":
+                print("CLOSE DIALOG CALL")
+                await manager.track_open_dialog(
+                    url_id=data["url_id"],
                     to_url_id=data["to_url_id"],
-                    sender=data["sender"],
-                    recipient=data["recipient"],
-                    message=data["message"],
-                    session=session,
                 )
+            elif data["type"] == "close_dialog":
+                print("CLOSE DIALOG CALL")
+                await manager.track_close_dialog(
+                    url_id=data["url_id"],
+                    to_url_id=data["to_url_id"],
+                )
+
             elif data and data["type"] == "request_dialog_last_message":
                 await manager.get_last_message(
                     from_url_id=data["from_url_id"],
