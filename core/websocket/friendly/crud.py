@@ -33,7 +33,9 @@ async def insert_ws_friendly_message(
     message: str,
     type_message: str,
     session: AsyncSession,
+    is_read_message: bool = False,
 ):
+    print(f"insert_ws_friendly_message, is_read_message={is_read_message}")
     stmt = insert(WebsocketFriendlyMessage).values(
         from_url_id=from_url_id,
         to_url_id=to_url_id,
@@ -41,6 +43,7 @@ async def insert_ws_friendly_message(
         recipient=recipient,
         message=message,
         type_message=type_message,
+        is_read_message=is_read_message,
     )
     await session.execute(stmt)
     await session.commit()
@@ -192,6 +195,7 @@ async def unread_messages(
     session: AsyncSession,
     url_id: str,
 ):
+    # Есть не прочитанное - верну True
     stmt = select(WebsocketFriendlyMessage.is_read_message).where(
         WebsocketFriendlyMessage.to_url_id == url_id,
     )
@@ -200,6 +204,7 @@ async def unread_messages(
     for read_message in messages:
         if not read_message:
             return True
+    return False
 
 
 async def mark_dialog_as_read(

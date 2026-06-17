@@ -251,11 +251,6 @@ class WebsocketManager:
             client,
             datetime.now().isoformat(),
         )
-        await self.redis.hset(
-            f"{self.dialogs_info}:{operator}",
-            client,
-            datetime.now().isoformat(),
-        )
         await self.clients[client].send_json(
             {
                 "type": "connect_confirm",
@@ -264,16 +259,10 @@ class WebsocketManager:
                 "message": f"Оператор {operator} вошел в чат",
             }
         )
-        # Пришел к выводу, что send_json логика на бэке не нужна, на фронте отправляю и так
-        # connect_confirm, а вот в локальный словарь надо сохранять кого то(клиента и оператора наверно)
-        # Возможная проблема, на фронте в useRef прокидываю имя оператора, а на бэке
-        # не успеваю добавить его в словарь
 
     async def bot_ask_question_about_solving_problem(
         self, client: str, operator: str, message: str
     ):
-        """Как узнать связку оператора с клиентом в busy_operators - итерироваться по k,v - если v это клиент, значит k - оператор который с ним вел диалог"""
-
         current_time = datetime.now()
         # last_message_time = self.dialog_data[operator][client]
         last_message_time = await self.redis.hget(
