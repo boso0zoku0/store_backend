@@ -21,8 +21,8 @@ site_build
 venv
 docs.zip
 archive.zip
-core/jwt/jwt_private.pem
-core/jwt/jwt_public.pem
+core/jwt_keys/jwt_private.pem
+core/jwt_keys/jwt_public.pem
 
 # Alembic
 alembic.ini

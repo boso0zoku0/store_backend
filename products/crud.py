@@ -24,7 +24,7 @@ import re
 import unicodedata
 from core.models.products import Filters
 from core.websocket.notify.manager import manager as notify_manager
-from redis_config import redis_client
+from services.redis.config import redis_client
 
 
 def generate_slug(name: str) -> str:

@@ -10,8 +10,8 @@ BASE_DIR = Path(__file__).parent.parent
 
 class JWTHelper:
     def __init__(self):
-        self.public_key = BASE_DIR / "jwt" / "jwt_public.pem"
-        self.private_key = BASE_DIR / "jwt" / "jwt_private.pem"
+        self.public_key = BASE_DIR / "jwt_keys" / "jwt_public.pem"
+        self.private_key = BASE_DIR / "jwt_keys" / "jwt_private.pem"
         self.algorithm = "RS256"
         self.access_token_expire_minutes = 900
         self.refresh_token_expire_days = 30
