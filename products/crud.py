@@ -57,12 +57,12 @@ async def show_products(
 
 
 async def show_product(
-    slug: str,
+    product_id: int,
     session: AsyncSession,
 ):
-    stmt = select(Products).where(Products.slug == slug)
+    stmt = select(Products).where(Products.id == product_id)
     result = await session.execute(stmt)
-    products = result.scalars().all()
+    products = result.scalars().first()
     return products
 
 

@@ -14,26 +14,25 @@ from products.crud import (
 
 
 router = APIRouter(
-    prefix="/products",
     tags=["Products"],
 )
 
 
-@router.get("/")
+@router.get("/products")
 async def get_products(session: AsyncSession = Depends(db_helper.session_dependency)):
     return await show_products(session)
 
 
-@router.get("/get/product/")
+@router.get("/product/get")
 async def get_product(
-    slug: Annotated[str, Query()],
+    product_id: Annotated[int, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
 
-    return await show_product(slug=slug, session=session)
+    return await show_product(product_id=product_id, session=session)
 
 
-@router.post("/find")
+@router.post("/product/find")
 async def find_product(
     short_name: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
@@ -41,7 +40,7 @@ async def find_product(
     return await search_product(short_name=short_name, session=session)
 
 
-@router.post("/filters/")
+@router.post("/products/filters/")
 async def search_color(
     filters: Filters,
     session: AsyncSession = Depends(db_helper.session_dependency),
