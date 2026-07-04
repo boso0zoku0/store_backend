@@ -72,12 +72,13 @@ class WebsocketManager:
                     dialog_key,
                     to_url_id,
                 )
-                await self.users[to_url_id].send_json(
-                    {
-                        "type": "friend_leave",
-                        "url_id_friend": url_id,
-                    }
-                )
+                if to_url_id in self.users:
+                    await self.users[to_url_id].send_json(
+                        {
+                            "type": "friend_leave",
+                            "url_id_friend": url_id,
+                        }
+                    )
 
     # Получить все сообщения диалога
     async def get_dialog(self, url_id: str, to_url_id: str, session: AsyncSession):
