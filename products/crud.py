@@ -169,11 +169,11 @@ async def show_cart(
     return result.mappings().all()
 
 
-async def search_product(short_name: str, session: AsyncSession):
-    if len(short_name) < 2:
+async def search_product(data: str, session: AsyncSession):
+    if len(data) < 2:
         return
     stmt = select(Products).where(
-        Products.short_name.ilike(f"%{short_name}%"),
+        Products.short_name.ilike(f"%{data}%"),
     )
     result = await session.execute(stmt)
     products = result.scalars().all()

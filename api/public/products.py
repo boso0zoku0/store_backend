@@ -34,10 +34,10 @@ async def get_product(
 
 @router.post("/product/find")
 async def find_product(
-    short_name: Annotated[str, Query()],
+    data: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await search_product(short_name=short_name, session=session)
+    return await search_product(short_name=data, session=session)
 
 
 @router.post("/products/filters/")
