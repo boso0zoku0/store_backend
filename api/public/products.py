@@ -10,6 +10,8 @@ from products.crud import (
     show_product,
     search_product,
     find_product_by_filters,
+    show_price_range,
+    get_filters_name,
 )
 
 
@@ -32,20 +34,39 @@ async def get_product(
     return await show_product(product_id=product_id, session=session)
 
 
-@router.post("/product/find")
+@router.get("/product/find")
 async def find_product(
     data: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await search_product(short_name=data, session=session)
+    print(f"data: {data}")
+    return await search_product(data=data, session=session)
 
 
 @router.post("/products/filters/")
-async def search_color(
+async def find_product(
     filters: Filters,
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     return await find_product_by_filters(
         session=session,
         filters=filters,
+    )
+
+
+@router.get("/products/filters/get")
+async def filters_get(
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await get_filters_name(
+        session=session,
+    )
+
+
+@router.get("/products/filter/price-range")
+async def get_price_range(
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await show_price_range(
+        session=session,
     )

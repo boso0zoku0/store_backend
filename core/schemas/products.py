@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 from pydantic import BaseModel
 
 
@@ -9,18 +11,22 @@ class Description(BaseModel):
     specificity: str
 
 
-class ProductsBase(BaseModel):
-    name: str
-    short_name: str
-    price: int
-    description: Description | None = None
-    photos: list[str] | None = None
-    about: str | None = None
-
-
-class ProductsGet(ProductsBase):
+class ProductBase(BaseModel):
     id: int
+    name: str
+    short_name: Optional[str] = None
+    price: Optional[int] = None
+    photos: Optional[List[str]] = None
+    about: Optional[str] = None
 
 
-class ProductsPost(ProductsBase):
+class ProductSearchResult(ProductBase):
+    similarity_percent: float
+
+
+class ProductsGet(ProductBase):
+    pass
+
+
+class ProductsPost(ProductBase):
     slug: str

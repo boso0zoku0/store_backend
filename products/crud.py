@@ -12,18 +12,18 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import settings
 from core.models import (
     Products,
     UsersProducts,
 )
 from core.models.UsersProducts import ProductStatus
-from core.schemas.products import ProductsPost
+from core.schemas.products import ProductsPost, ProductSearchResult
 from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
 from core.models.products import Filters
 from core.websocket.notify.manager import manager as notify_manager
+from products.helpers import get_product
 from services.redis.config import redis_client
 
 
@@ -36,9 +36,7 @@ def generate_slug(name: str) -> str:
     return slug
 
 
-async def show_products(
-    session: AsyncSession,
-):
+async def show_products(session: AsyncSession):
     cache_key = "products:all"
     cache = await redis_client.get(cache_key)
     if cache:
@@ -48,12 +46,27 @@ async def show_products(
     result = await session.execute(stmt)
     products = result.scalars().all()
 
+    products_dict = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "short_name": p.short_name,
+            "price": p.price,
+            "photos": p.photos,
+            "description": p.description,
+            "filters": p.filters,
+            "about": p.about,
+            "slug": p.slug,
+        }
+        for p in products
+    ]
+
     await redis_client.set(
         cache_key,
-        json.dumps(products),
+        json.dumps(products_dict),
         ex=60,
     )
-    return products
+    return products_dict
 
 
 async def show_product(
@@ -82,12 +95,6 @@ async def add_product(
     )
     session.add(product)
     await session.commit()
-
-
-async def get_product(slug: str, session: AsyncSession):
-    stmt = select(Products.id).where(Products.slug == slug)
-    result = await session.execute(stmt)
-    return result.scalars().first()
 
 
 async def remove_product_to_user(product_id: int, user_id: int, session: AsyncSession):
@@ -170,14 +177,107 @@ async def show_cart(
 
 
 async def search_product(data: str, session: AsyncSession):
+
+    query = data.strip().lower()
+    limit = 0.5
+    similarity = func.similarity(Products.short_name, query).label("similarity")
     if len(data) < 2:
-        return
-    stmt = select(Products).where(
-        Products.short_name.ilike(f"%{data}%"),
+        return await show_products(session)
+
+    stmt = (
+        select(Products, (similarity * 100).label("similarity_percent"))
+        .where(Products.short_name.op("%")(query), similarity > limit)
+        .order_by(similarity.desc())
     )
     result = await session.execute(stmt)
-    products = result.scalars().all()
-    return products
+    products = result.mappings().all()
+    if not products:
+        return await show_products(session)
+    return [
+        ProductSearchResult(
+            id=row["Products"].id,
+            name=row["Products"].name,
+            short_name=row["Products"].short_name,
+            price=row["Products"].price,
+            photos=row["Products"].photos,
+            about=row["Products"].about,
+            similarity_percent=row["similarity_percent"],
+        )
+        for row in products
+    ]
+
+
+async def get_filters_name(session: AsyncSession):
+    FILTER_LABELS = {
+        "categories": "Тип",
+        "price_range": "Ценовой диапазон",
+        "colors": "Цвет",
+        "volume": "Объем",
+    }
+    stmt = select(Products.filters).limit(1)
+    result = await session.execute(stmt)
+    filters = result.scalar()
+    filters_name = list(filters.keys())
+    show_filters = []
+    for filter_name in filters_name:
+        if filter_name in FILTER_LABELS.keys():
+            show_filters.append(FILTER_LABELS[filter_name])
+    return show_filters
+
+
+# узнавать диапазон цен, категории, цвета, обьемы в одном запросе
+async def get_filters_value(session: AsyncSession):
+    stmt = select(
+        func.min(Products.price).label("min_price"),
+        func.max(Products.price).label("max_price"),
+        Products.filters,
+    )
+    return {
+        "price_range": "",
+        "categories": "",
+        "colors": "",
+        "volumes": "",
+    }
+
+
+async def show_price_range(session: AsyncSession):
+    subquery = (
+        select(
+            Products.price,
+            Products.filters,
+            func.jsonb_array_elements_text(Products.filters["colors"]).label("color"),
+        )
+        .where(
+            Products.filters["colors"].isnot(None),
+            func.jsonb_array_length(Products.filters["colors"]) > 0,
+        )
+        .subquery()
+    )
+
+    stmt = select(
+        func.min(subquery.c.price).label("min_price"),
+        func.max(subquery.c.price).label("max_price"),
+        func.array_agg(func.distinct(subquery.c.filters["categories"].astext)).label(
+            "categories"
+        ),
+        func.array_agg(func.distinct(subquery.c.color)).label("colors"),
+        func.array_agg(func.distinct(subquery.c.filters["volume"][0].astext)).label(
+            "volumes"
+        ),
+    )
+
+    result = await session.execute(stmt)
+    data = result.mappings().first()
+
+    return {
+        "price_range": {
+            "min_price": data["min_price"] or 0,
+            "max_price": data["max_price"] or 12000,
+        },
+        "categories": data["categories"] or [],
+        "colors": data["colors"] or [],
+        "volumes": data["volumes"] or [],
+    }
 
 
 async def find_product_by_filters(filters: Filters, session: AsyncSession):
