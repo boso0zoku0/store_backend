@@ -17,7 +17,7 @@ from core.models import (
     UsersProducts,
 )
 from core.models.UsersProducts import ProductStatus
-from core.schemas.products import ProductsPost, ProductSearchResult
+from core.schemas.products import ProductsPost, ProductSearchResult, ProductFilterValues
 from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
@@ -207,7 +207,8 @@ async def search_product(data: str, session: AsyncSession):
     ]
 
 
-async def get_filters_name(session: AsyncSession):
+# для отображения списка существующих фильтров
+async def get_filters_names(session: AsyncSession):
     FILTER_LABELS = {
         "categories": "Тип",
         "price_range": "Ценовой диапазон",
@@ -225,43 +226,17 @@ async def get_filters_name(session: AsyncSession):
     return show_filters
 
 
-# узнавать диапазон цен, категории, цвета, обьемы в одном запросе
-async def get_filters_value(session: AsyncSession):
+# для отображения существующих значений для каждого фильтра
+async def get_filters_values(session: AsyncSession):
+
     stmt = select(
         func.min(Products.price).label("min_price"),
         func.max(Products.price).label("max_price"),
-        Products.filters,
-    )
-    return {
-        "price_range": "",
-        "categories": "",
-        "colors": "",
-        "volumes": "",
-    }
-
-
-async def show_price_range(session: AsyncSession):
-    subquery = (
-        select(
-            Products.price,
-            Products.filters,
-            func.jsonb_array_elements_text(Products.filters["colors"]).label("color"),
-        )
-        .where(
-            Products.filters["colors"].isnot(None),
-            func.jsonb_array_length(Products.filters["colors"]) > 0,
-        )
-        .subquery()
-    )
-
-    stmt = select(
-        func.min(subquery.c.price).label("min_price"),
-        func.max(subquery.c.price).label("max_price"),
-        func.array_agg(func.distinct(subquery.c.filters["categories"].astext)).label(
+        func.array_agg(func.distinct(Products.filters["categories"].astext)).label(
             "categories"
         ),
-        func.array_agg(func.distinct(subquery.c.color)).label("colors"),
-        func.array_agg(func.distinct(subquery.c.filters["volume"][0].astext)).label(
+        func.array_agg(func.distinct(Products.filters["colors"])).label("colors"),
+        func.array_agg(func.distinct(Products.filters["volume"][0].astext)).label(
             "volumes"
         ),
     )
@@ -269,15 +244,15 @@ async def show_price_range(session: AsyncSession):
     result = await session.execute(stmt)
     data = result.mappings().first()
 
-    return {
-        "price_range": {
+    return ProductFilterValues(
+        price_range={
             "min_price": data["min_price"] or 0,
             "max_price": data["max_price"] or 12000,
         },
-        "categories": data["categories"] or [],
-        "colors": data["colors"] or [],
-        "volumes": data["volumes"] or [],
-    }
+        categories=data["categories"],
+        colors=data["colors"],
+        volumes=data["volumes"],
+    )
 
 
 async def find_product_by_filters(filters: Filters, session: AsyncSession):

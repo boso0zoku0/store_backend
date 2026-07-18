@@ -30,3 +30,10 @@ class ProductsGet(ProductBase):
 
 class ProductsPost(ProductBase):
     slug: str
+
+
+class ProductFilterValues(BaseModel):
+    price_range: dict[str, int] = {}
+    categories: list | None = None
+    colors: list | None = None
+    volumes: list | None = None

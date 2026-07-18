@@ -10,8 +10,7 @@ from products.crud import (
     show_product,
     search_product,
     find_product_by_filters,
-    show_price_range,
-    get_filters_name,
+    get_filters_names,
 )
 
 
@@ -58,15 +57,13 @@ async def find_product(
 async def filters_get(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await get_filters_name(
+    return await get_filters_names(
         session=session,
     )
 
 
-@router.get("/products/filter/price-range")
+@router.get("/products/filters/values")
 async def get_price_range(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await show_price_range(
-        session=session,
-    )
+    pass

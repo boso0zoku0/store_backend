@@ -32,6 +32,13 @@ class Filters(BaseModel):
     inStock: bool = None
 
 
+class FiltersNew(BaseModel):
+    category: list[str] | None = None
+    colors: list[str] | None = None
+    volume: int | None = None
+    inStock: bool = None
+
+
 class Products(Base):
     id: Mapped[int] = mapped_column(
         BigInteger,
@@ -51,6 +58,16 @@ class Products(Base):
             "colors": [""],
             "volume": [0, 0],
             "in_stock": True,
+        },
+    )
+    filters_new: Mapped[FiltersNew] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=lambda: {
+            "category": "",
+            "colors": "",
+            "volume": None,
+            "in_stock": None,
         },
     )
 
