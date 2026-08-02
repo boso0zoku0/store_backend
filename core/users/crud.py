@@ -156,8 +156,6 @@ async def get_me(
 async def add_user(
     username: str,
     password: str,
-    email: EmailStr,
-    phone: str,
     ip: str,
     session: AsyncSession = Depends(db_helper.session_dependency()),
 ):
@@ -177,8 +175,6 @@ async def add_user(
         user = Users(
             name=username,
             password=str(pwd),
-            email=str(email),
-            phone=phone,
             user_role=os.getenv("CLIENT"),
             url_id=url_id,
             ip=ip,
@@ -218,16 +214,6 @@ async def add_user(
                 "type": "invalid email",
             },
         )
-
-
-class DataUser(BaseModel):
-    name: str
-    email: str
-    phone: str
-    product_short_name: str
-    products_count: int
-    products_price: int
-    products_status: ProductStatus
 
 
 async def get_profile(session: AsyncSession, url_id: str):

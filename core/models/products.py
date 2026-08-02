@@ -25,18 +25,9 @@ if TYPE_CHECKING:
 
 
 class Filters(BaseModel):
-    categories: list[str] | None = None
-    priceRange: list[int] | None = None
-    colors: list[str] | None = None
-    volume: list[int] | None = None
-    inStock: bool = None
-
-
-class FiltersNew(BaseModel):
-    category: list[str] | None = None
-    colors: list[str] | None = None
+    category: str = ""
+    colors: str = ""
     volume: int | None = None
-    inStock: bool = None
 
 
 class Products(Base):
@@ -53,21 +44,9 @@ class Products(Base):
         JSONB,
         nullable=True,
         default=lambda: {
-            "categories": [""],
-            "price_range": (0, 50000),
-            "colors": [""],
-            "volume": [0, 0],
-            "in_stock": True,
-        },
-    )
-    filters_new: Mapped[FiltersNew] = mapped_column(
-        JSONB,
-        nullable=True,
-        default=lambda: {
             "category": "",
             "colors": "",
             "volume": None,
-            "in_stock": None,
         },
     )
 

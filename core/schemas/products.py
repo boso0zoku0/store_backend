@@ -32,8 +32,15 @@ class ProductsPost(ProductBase):
     slug: str
 
 
-class ProductFilterValues(BaseModel):
-    price_range: dict[str, int] = {}
-    categories: list | None = None
-    colors: list | None = None
-    volumes: list | None = None
+class FiltersValues(BaseModel):
+    price_range: dict[str, int]
+    categories: list[str]
+    colors: list[str]
+    volumes: list[int]
+
+
+class FiltersFind(BaseModel):
+    category: list[str] | None = None
+    colors: list[str] | None = None
+    volume: list[int] | None = None
+    priceRange: dict[str, int] | None = None

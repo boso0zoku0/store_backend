@@ -2,14 +2,7 @@ import json
 from typing import cast
 
 from fastapi import Request
-from sqlalchemy import (
-    select,
-    and_,
-    func,
-    insert,
-    update,
-    Boolean,
-)
+from sqlalchemy import select, and_, func, insert, update, Boolean, or_, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models import (
@@ -17,11 +10,16 @@ from core.models import (
     UsersProducts,
 )
 from core.models.UsersProducts import ProductStatus
-from core.schemas.products import ProductsPost, ProductSearchResult, ProductFilterValues
+
+from core.schemas.products import (
+    ProductsPost,
+    ProductSearchResult,
+    FiltersValues,
+    FiltersFind,
+)
 from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
-from core.models.products import Filters
 from core.websocket.notify.manager import manager as notify_manager
 from products.helpers import get_product
 from services.redis.config import redis_client
@@ -210,19 +208,23 @@ async def search_product(data: str, session: AsyncSession):
 # для отображения списка существующих фильтров
 async def get_filters_names(session: AsyncSession):
     FILTER_LABELS = {
-        "categories": "Тип",
-        "price_range": "Ценовой диапазон",
+        "category": "Тип",
+        "price": "Ценовой диапазон",
         "colors": "Цвет",
         "volume": "Объем",
     }
-    stmt = select(Products.filters).limit(1)
-    result = await session.execute(stmt)
-    filters = result.scalar()
+    stmt = select(Products.filters, Products.price).limit(1)
+    row = (await session.execute(stmt)).mappings().first()
+
+    filters = row["filters"]
+    price = row["price"]
+
     filters_name = list(filters.keys())
     show_filters = []
     for filter_name in filters_name:
         if filter_name in FILTER_LABELS.keys():
             show_filters.append(FILTER_LABELS[filter_name])
+    show_filters.append(FILTER_LABELS["price"])
     return show_filters
 
 
@@ -232,11 +234,13 @@ async def get_filters_values(session: AsyncSession):
     stmt = select(
         func.min(Products.price).label("min_price"),
         func.max(Products.price).label("max_price"),
-        func.array_agg(func.distinct(Products.filters["categories"].astext)).label(
+        func.array_agg(func.distinct(Products.filters["category"].astext)).label(
             "categories"
         ),
-        func.array_agg(func.distinct(Products.filters["colors"])).label("colors"),
-        func.array_agg(func.distinct(Products.filters["volume"][0].astext)).label(
+        func.array_agg(func.distinct(Products.filters["colors"].astext)).label(
+            "colors"
+        ),
+        func.array_agg(func.distinct(Products.filters["volume"].as_integer())).label(
             "volumes"
         ),
     )
@@ -244,7 +248,7 @@ async def get_filters_values(session: AsyncSession):
     result = await session.execute(stmt)
     data = result.mappings().first()
 
-    return ProductFilterValues(
+    return FiltersValues(
         price_range={
             "min_price": data["min_price"] or 0,
             "max_price": data["max_price"] or 12000,
@@ -255,59 +259,41 @@ async def get_filters_values(session: AsyncSession):
     )
 
 
-async def find_product_by_filters(filters: Filters, session: AsyncSession):
+async def find_product_by_filters(filters: FiltersFind, session: AsyncSession):
     stmt = select(Products)
     print(f"Фильтры: {filters}")
     conditions = []
-    optional = []
-    if filters.categories and filters.categories[0]:
-        print(f"Поиск по категории: {filters.categories}")
-        conditions.append(
-            Products.filters["categories"].contains([filters.categories[0]])
-        )
 
-        if filters.priceRange is not None:
-            print("Поиск по ценовому диапазону")
-            min_filter = filters.priceRange[0]
-            max_filter = filters.priceRange[1]
+    for name, values in filters.model_dump().items():
+        if values is None:
+            continue
+        if len(values) == 1:
+            # число
+            if isinstance(values[0], int):
+                conditions.append(Products.filters[name].as_integer() == values[0])
+            # строка
+            if isinstance(values[0], str):
+                conditions.append(Products.filters[name].astext == values[0])
+        # обязательно сначала на словарь проверить
+        if name == "priceRange" and isinstance(values, dict):
             conditions.append(
                 and_(
-                    Products.price >= min_filter,
-                    Products.price <= max_filter,
+                    Products.price >= values["min_price"],
+                    Products.price <= values["max_price"],
                 )
             )
-            if filters.inStock is True:
-                print(f"Поиск по наличию внутри поиска по категории: {filters.inStock}")
-                conditions.append(cast(Products.filters["inStock"], Boolean) == True)
-            if filters.colors and filters.colors[0]:
-                print(f"Поиск по цветам внутри поиска по категории: {filters.colors}")
-                conditions.append(Products.filters["colors"].astext.in_(filters.colors))
-            if filters.volume is not None:
-                print(f"Поиск по обьему внутри поиска по категории: {filters.volume}")
-                conditions.append(Products.filters["volume"] == filters.volume)
-            stmt = stmt.where(and_(*conditions))
-            result = await session.execute(stmt)
-            res = result.scalars().all()
-            return res
-    else:
-        print(f"Второстепенный поиск")
-        print(f"price: {filters.priceRange}")
-        if filters.priceRange is not None:
-            min_filter = filters.priceRange[0]
-            max_filter = filters.priceRange[1]
-            optional.append(
-                and_(
-                    Products.price >= min_filter,
-                    Products.price <= max_filter,
-                )
-            )
-        if filters.colors and filters.colors[0]:
-            print(f"Второстепенный поиск по цвету: {filters.colors}")
-            optional.append(Products.filters["colors"].contains(filters.colors))
+            continue
+        elif isinstance(values[0], int):
+            or_conditions = [
+                Products.filters[name].as_integer() == value for value in values
+            ]
+            conditions.append(or_(*or_conditions))
+        # список строк
+        elif isinstance(values[0], str):
+            or_conditions = [Products.filters[name].astext == value for value in values]
+            conditions.append(or_(*or_conditions))
 
-        if filters.volume and filters.volume:
-            print(f"Второстепенный поиск по обьему: {filters.volume}")
-            optional.append(Products.filters["volume"] == filters.volume)
-        stmt = stmt.where(and_(*optional))
-        result = await session.execute(stmt)
-        return result.scalars().all()
+    stmt = stmt.where(and_(*conditions))
+    result = await session.execute(stmt)
+    res = result.scalars().all()
+    return res

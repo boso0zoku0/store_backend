@@ -1,16 +1,18 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.schemas.products import FiltersFind
+
 from core import db_helper
-from core.models.products import Filters
 from products.crud import (
     show_products,
     show_product,
     search_product,
     find_product_by_filters,
     get_filters_names,
+    get_filters_values,
 )
 
 
@@ -42,11 +44,12 @@ async def find_product(
     return await search_product(data=data, session=session)
 
 
-@router.post("/products/filters/")
+@router.post("/products/filters/find")
 async def find_product(
-    filters: Filters,
+    filters: Annotated[FiltersFind, Body()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
+    print(f"filterss: {filters}")
     return await find_product_by_filters(
         session=session,
         filters=filters,
@@ -66,4 +69,4 @@ async def filters_get(
 async def get_price_range(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    pass
+    return await get_filters_values(session=session)
