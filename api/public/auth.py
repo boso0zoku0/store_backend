@@ -33,8 +33,6 @@ async def register_user(
     request: Request,
     username: str = Form(),
     password: str = Form(),
-    email: EmailStr = Form(),
-    phone: str = Form(),
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     ip = request.client.host
@@ -44,8 +42,6 @@ async def register_user(
         session=session,
         username=username,
         password=password,
-        email=email,
-        phone=phone,
         ip=ip,
     )
     await session.execute(

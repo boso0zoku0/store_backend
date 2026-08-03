@@ -25,11 +25,9 @@ if TYPE_CHECKING:
 
 
 class Filters(BaseModel):
-    categories: list[str] | None = None
-    priceRange: list[int] | None = None
-    colors: list[str] | None = None
-    volume: list[int] | None = None
-    inStock: bool = None
+    category: str = ""
+    colors: str = ""
+    volume: int | None = None
 
 
 class Products(Base):
@@ -46,11 +44,9 @@ class Products(Base):
         JSONB,
         nullable=True,
         default=lambda: {
-            "categories": [""],
-            "price_range": (0, 50000),
-            "colors": [""],
-            "volume": [0, 0],
-            "in_stock": True,
+            "category": "",
+            "colors": "",
+            "volume": None,
         },
     )
 
