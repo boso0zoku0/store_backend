@@ -1,21 +1,43 @@
+import logging
 from typing import Annotated
-
-from fastapi import Depends, APIRouter, UploadFile, File, Body, Header
+import jwt
+from fastapi import (
+    Depends,
+    APIRouter,
+    UploadFile,
+    File,
+    Body,
+    Header,
+    Path,
+    Header,
+    Request,
+    Response,
+    HTTPException,
+)
+from fastapi.params import Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.requests import Request
 from core import db_helper
 from core.models.UsersProducts import ProductStatus
-from core.schemas.products import ProductsPost
-from core.users.crud import get_user_by_cookie, get_current_auth_user
+from core.schemas.products import ProductsPost, ProductCommentAdd
+from core.users.crud import (
+    get_user_by_cookie,
+    get_current_auth_user,
+    get_user_by_jwt_token,
+)
+from core.users.jwt import jwt_helper
 from products.crud import (
     add_product,
     add_product_to_cart,
     change_product_status_to_cart,
     show_cart,
     remove_product_to_user,
+    product_comment_add,
+    show_cart_short,
 )
 from static.helper import upload_file
 
+logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/products",
     tags=["Products"],
@@ -76,7 +98,10 @@ async def get_cart(
     return await show_cart(request=request, session=session)
 
 
-@router.delete("/delete")
+@router.delete(
+    "/delete",
+    description="Удалить товар из корзины",
+)
 async def delete_product(
     product_id: int,
     request: Request,
@@ -85,4 +110,30 @@ async def delete_product(
     user = await get_user_by_cookie(session, request)
     return await remove_product_to_user(
         user_id=user["user_id"], product_id=product_id, session=session
+    )
+
+
+@router.get("/order/get", description="Кнопка оплатить заказ -> редирект сюда")
+async def get_order(
+    credentials: Annotated[str, Header(alias="Authorization")],
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    user = await get_user_by_jwt_token(credentials)
+    result = await show_cart_short(session=session, user=user)
+    return result
+
+
+@router.post(
+    "/feedback/add_comment/{product_id}",
+    description="Отзыв к продукту, если в заказе их несколько, пусть юзер выберет один",
+)
+async def create_comment(
+    product_id: Annotated[int, Path()],
+    comment: Annotated[ProductCommentAdd, Body()],
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await product_comment_add(
+        session=session,
+        product_id=product_id,
+        feedback=comment,
     )

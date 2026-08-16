@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
 from core.models import Users
-from core.users.crud import add_user, login
+from core.users.crud import add_user, login, get_user_by_jwt_token
 from core.users.helper import generate_session_id
 from core.users.jwt import jwt_helper
 
@@ -94,6 +94,16 @@ async def user_login(
         }
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+
+# @router.post("/logout", status_code=status.HTTP_200_OK)
+# async def user_login(
+#     response: Response,
+#     credentials: Annotated[str, Header()],
+#     session: AsyncSession = Depends(db_helper.session_dependency),
+# ):
+#     user = await get_user_by_jwt_token(credentials)
+#     return await logout(session=session, user=user.get("id"))
 
 
 class RefreshToken(BaseModel):

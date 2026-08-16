@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 from typing import Annotated
-
+import jwt
 from fastapi import Depends, HTTPException, Form, Request, status
 from pydantic import BaseModel, EmailStr, ValidationError
 from sqlalchemy import select, func, update, text, JSON, cast
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import db_helper
 from core.models import Users, Products, UsersProducts
 from core.models.UsersProducts import ProductStatus
+from core.schemas.users import UsersJwtDecode
 from core.users.helper import hash_password, validate_password
 from core.users.jwt import jwt_helper
 from fastapi.security import (
@@ -19,6 +20,7 @@ from fastapi.security import (
     HTTPAuthorizationCredentials,
 )
 import uuid
+from services.s3.s3_client import s3_client
 
 security = HTTPBearer()
 
@@ -48,6 +50,19 @@ async def get_current_auth_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def get_user_by_jwt_token(
+    credentials: str,
+) -> UsersJwtDecode:
+    try:
+        access_token = credentials.removeprefix("Bearer ")
+        user = jwt_helper.decode(access_token)
+        return user
+    except Exception:
+        raise HTTPException(
+            detail="Invalid token", status_code=status.HTTP_401_UNAUTHORIZED
         )
 
 
@@ -224,6 +239,7 @@ async def get_profile(session: AsyncSession, url_id: str):
             Users.email,
             Users.phone,
             Users.date_registration,
+            Users.photo,
             func.coalesce(func.count(UsersProducts.id), 0).label("total_orders"),
             func.coalesce(func.sum(Products.price), 0).label("total_price"),
             func.coalesce(
@@ -270,3 +286,14 @@ async def get_role_user(
     result = await session.execute(stmt)
     role = result.scalar_one_or_none()
     return role
+
+
+async def add_photo_profile(
+    request: Request,
+    photo: str,
+    session: AsyncSession,
+):
+    user = await get_user_by_cookie(session, request)
+    stmt = update(Users).where(Users.id == user["user_id"]).values(photo=photo)
+    await session.execute(stmt)
+    await session.commit()

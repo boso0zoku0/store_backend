@@ -37,6 +37,12 @@ class Users(Base):
     )
     user_role: Mapped[str] = mapped_column(default="client")
     url_id: Mapped[str] = mapped_column(unique=True, nullable=True)
+    photo: Mapped[str] = mapped_column(
+        nullable=True,
+        server_default=text(
+            "'https://clay-shop.s3.cloud.ru/media/users/photos/85694cd5-12c9-484d-b447-898a003caf38.png'"
+        ),
+    )
     cookie: Mapped[str] = mapped_column(nullable=True)
     ip: Mapped[str] = mapped_column(nullable=True)
     cookie_expires: Mapped[TIMESTAMP] = mapped_column(

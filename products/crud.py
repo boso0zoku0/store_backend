@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.models import (
     Products,
     UsersProducts,
+    ProductsFeedback,
+    Users,
 )
 from core.models.UsersProducts import ProductStatus
 
@@ -16,7 +18,10 @@ from core.schemas.products import (
     ProductSearchResult,
     FiltersValues,
     FiltersFind,
+    ProductCommentAdd,
+    GetProductReviewers,
 )
+from core.schemas.users import UsersJwtDecode
 from core.users.crud import get_user_by_cookie
 import re
 import unicodedata
@@ -116,12 +121,6 @@ async def add_product_to_cart(
 ):
     user = await get_user_by_cookie(session, request)
     product_id = await get_product(slug, session)
-
-    await notify_manager.broadcast(
-        username=user["username"],
-        product_name=slug,
-        url_id=user["url_id"],
-    )
     stmt = insert(UsersProducts).values(
         users_id=user["user_id"],
         products_id=product_id,
@@ -165,13 +164,32 @@ async def show_cart(
         .where(
             and_(
                 UsersProducts.users_id == user["user_id"],
-                UsersProducts.status != "cancelled",
+                UsersProducts.status == "processing",
             )
         )
         .group_by(Products.id)
     )
     result = await session.execute(stmt)
     return result.mappings().all()
+
+
+async def show_cart_short(
+    user: UsersJwtDecode,
+    session: AsyncSession,
+):
+    stmt = (
+        select(Products)
+        .distinct()
+        .join(UsersProducts, Products.id == UsersProducts.products_id)
+        .where(
+            and_(
+                UsersProducts.users_id == user["user_id"],
+                UsersProducts.status == "processing",
+            )
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 
 async def search_product(data: str, session: AsyncSession):
@@ -297,3 +315,39 @@ async def find_product_by_filters(filters: FiltersFind, session: AsyncSession):
     result = await session.execute(stmt)
     res = result.scalars().all()
     return res
+
+
+async def product_comment_add(session, product_id, feedback):
+    stmt = ProductsFeedback(
+        sender_id=feedback.sender_id,
+        product_id=product_id,
+        comment=feedback.comment,
+    )
+    session.add(stmt)
+    await session.commit()
+
+
+async def get_reviewers_by_product(
+    session: AsyncSession, product_id: int
+) -> list[GetProductReviewers]:
+    stmt = (
+        select(
+            Users.id.label("id_reviewer"),
+            Users.name.label("name_reviewer"),
+            Users.date_registration.label("date_registration_reviewer"),
+            Users.photo.label("photo_reviewer"),
+            ProductsFeedback.comment.label("comment"),
+            ProductsFeedback.created_at.label("created_at"),
+            # первый элемент (индекс 1 в PostgresSQL)
+            Products.photos[1].astext.label("photo_product"),
+        )
+        .select_from(ProductsFeedback)
+        .join(Users, Users.id == ProductsFeedback.sender_id)
+        .join(Products, Products.id == ProductsFeedback.product_id)
+        .where(Products.id == product_id)
+    )
+    result = await session.execute(stmt)
+    # scalars().all() вернул бы массив с первым полем
+    data = result.mappings().all()
+    users = [GetProductReviewers.model_validate(row) for row in data]
+    return users

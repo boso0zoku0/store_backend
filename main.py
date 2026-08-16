@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,6 +20,20 @@ from broker.config import (
     queue_operators,
 )
 from broker.handlers import *
+from core.config import LoggingConfig
+
+# log_config = LoggingConfig(
+#     log_level_name="DEBUG",
+#     log_format="[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s",
+#     date_format="%Y-%m-%d %H:%M:%S",
+# )
+#
+# logging.basicConfig(
+#     level=log_config.log_level,
+#     format=log_config.log_format,
+#     datefmt=log_config.date_format,
+# )
+# logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager

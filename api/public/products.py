@@ -1,9 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File, Body
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Body, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.schemas.products import FiltersFind
+from core.schemas.products import FiltersFind, GetProductReviewers
 
 from core import db_helper
 from products.crud import (
@@ -13,6 +13,7 @@ from products.crud import (
     find_product_by_filters,
     get_filters_names,
     get_filters_values,
+    get_reviewers_by_product,
 )
 
 
@@ -70,3 +71,15 @@ async def get_price_range(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     return await get_filters_values(session=session)
+
+
+@router.get(
+    "/product/{product_id}/reviewers",
+    description="Открыть все отзывы юзеров к продукту",
+    response_model=list[GetProductReviewers],
+)
+async def get_product_reviewers(
+    product_id: Annotated[int, Path()],
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await get_reviewers_by_product(session, product_id)

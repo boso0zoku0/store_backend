@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 import jwt
-
+from core.schemas.users import UsersJwtDecode
 
 BASE_DIR = Path(__file__).parent.parent
 
@@ -42,7 +42,7 @@ class JWTHelper:
 
         return jwt.encode(data, self.private_key.read_text(), self.algorithm)
 
-    def decode(self, token: str | bytes):
+    def decode(self, token: str | bytes) -> UsersJwtDecode:
         return jwt.decode(
             token,
             self.public_key.read_text(),

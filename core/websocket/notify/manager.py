@@ -1,3 +1,4 @@
+import uuid
 from fastapi import WebSocket
 from services.redis.config import redis_client
 
@@ -15,11 +16,13 @@ class WebsocketManager:
         username: str,
         product_name: str,
     ):
+        random_id = str(uuid.uuid4())
         for user_id, websocket in self.users.items():
             await websocket.send_json(
                 {
                     "type": "notify_manager",
-                    "from": username,
+                    "id": random_id,
+                    "username": username,
                     "url_id": url_id,
                     "product_name": product_name,
                 }
