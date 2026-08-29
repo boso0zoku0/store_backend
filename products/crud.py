@@ -1,10 +1,12 @@
 import json
-from typing import cast
 
-from fastapi import Request
+from fastapi import Request, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select, and_, func, insert, update, Boolean, or_, String
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from broker.config import exchange
 from core.models import (
     Products,
     UsersProducts,
@@ -12,6 +14,7 @@ from core.models import (
     Users,
 )
 from core.models.UsersProducts import ProductStatus
+from core.schemas.api import ApiStatus
 
 from core.schemas.products import (
     ProductsPost,
@@ -20,6 +23,7 @@ from core.schemas.products import (
     FiltersFind,
     ProductCommentAdd,
     GetProductReviewers,
+    Filters,
 )
 from core.schemas.users import UsersJwtDecode
 from core.users.crud import get_user_by_cookie
@@ -98,6 +102,7 @@ async def add_product(
     )
     session.add(product)
     await session.commit()
+    return ApiStatus(status="success", message="Продукт создан")
 
 
 async def remove_product_to_user(product_id: int, user_id: int, session: AsyncSession):
@@ -109,8 +114,13 @@ async def remove_product_to_user(product_id: int, user_id: int, session: AsyncSe
     )
     res = await session.execute(stmt)
     product = res.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Продукта нету в корзине"
+        )
     await session.delete(product)
     await session.commit()
+    return ApiStatus(status="success", message="Товар удален из корзины")
 
 
 async def add_product_to_cart(
@@ -119,8 +129,13 @@ async def add_product_to_cart(
     request: Request,
     session: AsyncSession,
 ):
-    user = await get_user_by_cookie(session, request)
     product_id = await get_product(slug, session)
+    if product_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Товара не существует"
+        )
+
+    user = await get_user_by_cookie(session, request)
     stmt = insert(UsersProducts).values(
         users_id=user["user_id"],
         products_id=product_id,
@@ -129,6 +144,7 @@ async def add_product_to_cart(
     )
     await session.execute(stmt)
     await session.commit()
+    return ApiStatus(status="success", message="Товар добавлен в корзину")
 
 
 async def change_product_status_to_cart(
@@ -137,8 +153,12 @@ async def change_product_status_to_cart(
     request: Request,
     session: AsyncSession,
 ):
-    user = await get_user_by_cookie(session, request)
     product_id = await get_product(slug, session)
+    if product_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Товара не существует"
+        )
+    user = await get_user_by_cookie(session, request)
     stmt = (
         update(UsersProducts)
         .where(
@@ -151,6 +171,7 @@ async def change_product_status_to_cart(
     )
     await session.execute(stmt)
     await session.commit()
+    return ApiStatus(status="success", message="Товар добавлен в корзину")
 
 
 async def show_cart(
@@ -164,6 +185,7 @@ async def show_cart(
         .where(
             and_(
                 UsersProducts.users_id == user["user_id"],
+                # mock
                 UsersProducts.status == "processing",
             )
         )
@@ -189,6 +211,7 @@ async def show_cart_short(
         )
     )
     result = await session.execute(stmt)
+    # по умолчанию [] если пусто
     return result.scalars().all()
 
 
@@ -325,6 +348,7 @@ async def product_comment_add(session, product_id, feedback):
     )
     session.add(stmt)
     await session.commit()
+    return ApiStatus(status="success", message="Комментарий оставлен")
 
 
 async def get_reviewers_by_product(

@@ -1,6 +1,5 @@
 import logging
 from typing import Annotated
-import jwt
 from fastapi import (
     Depends,
     APIRouter,
@@ -17,15 +16,17 @@ from fastapi import (
 from fastapi.params import Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
+
 from core import db_helper
 from core.models.UsersProducts import ProductStatus
-from core.schemas.products import ProductsPost, ProductCommentAdd
+from core.schemas.api import ApiStatus
+from core.schemas.products import ProductsPost, ProductCommentAdd, Product, ProductCart
 from core.users.crud import (
     get_user_by_cookie,
     get_current_auth_user,
     get_user_by_jwt_token,
 )
-from core.users.jwt import jwt_helper
 from products.crud import (
     add_product,
     add_product_to_cart,
@@ -45,14 +46,20 @@ router = APIRouter(
 )
 
 
-@router.post("/upload")
+@router.post(
+    "/upload",
+    response_model=str,
+)
 async def upload_product(
     product: UploadFile = File(),
 ):
     return await upload_file(product)
 
 
-@router.post("/")
+@router.post(
+    "/add",
+    response_model=ApiStatus,
+)
 async def create_products(
     product: ProductsPost,
     session: AsyncSession = Depends(db_helper.session_dependency),
@@ -60,7 +67,10 @@ async def create_products(
     return await add_product(product, session)
 
 
-@router.post("/add/to-cart")
+@router.post(
+    "/add/to-cart",
+    response_model=ApiStatus,
+)
 async def create_product(
     slug: Annotated[str, Body()],
     product_status: Annotated[ProductStatus, Body()],
@@ -73,7 +83,10 @@ async def create_product(
     )
 
 
-@router.post("/change/status")
+@router.post(
+    "/change/status",
+    response_model=ApiStatus,
+)
 async def change_product_status(
     slug: Annotated[str, Body()],
     stat: Annotated[ProductStatus, Body()],
@@ -89,7 +102,11 @@ async def change_product_status(
     )
 
 
-@router.get("/get/to-cart")
+@router.get(
+    "/get/to-cart",
+    response_model=list[ProductCart],
+    status_code=status.HTTP_200_OK,
+)
 async def get_cart(
     request: Request,
     session: AsyncSession = Depends(db_helper.session_dependency),
@@ -99,8 +116,11 @@ async def get_cart(
 
 
 @router.delete(
-    "/delete",
+    "/delete/{product_id}",
     description="Удалить товар из корзины",
+    response_model=ApiStatus,
+    # 204 статус означает нет контента, а я возвращаю ApiStatus в случае успеха, значит 200
+    status_code=status.HTTP_200_OK,
 )
 async def delete_product(
     product_id: int,
@@ -113,7 +133,12 @@ async def delete_product(
     )
 
 
-@router.get("/order/get", description="Кнопка оплатить заказ -> редирект сюда")
+@router.get(
+    "/order/get",
+    description="Кнопка оплатить заказ -> редирект сюда",
+    status_code=status.HTTP_200_OK,
+    response_model=list[Product],
+)
 async def get_order(
     credentials: Annotated[str, Header(alias="Authorization")],
     session: AsyncSession = Depends(db_helper.session_dependency),
@@ -126,6 +151,8 @@ async def get_order(
 @router.post(
     "/feedback/add_comment/{product_id}",
     description="Отзыв к продукту, если в заказе их несколько, пусть юзер выберет один",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ApiStatus,
 )
 async def create_comment(
     product_id: Annotated[int, Path()],

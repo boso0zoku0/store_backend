@@ -79,3 +79,25 @@ class GetProductReviewers(BaseModel):
     def serialize_dt_comment(self, dt: datetime) -> str:
         # Формат: 15.01.2024 10:30
         return dt.strftime("%d.%m.%Y %H:%M")
+
+
+class Filters(BaseModel):
+    category: str = ""
+    colors: str = ""
+    volume: int | None = None
+
+
+class Product(BaseModel):
+    id: int
+    name: str
+    short_name: str | None = None
+    slug: str | None = None
+    price: int | None = None
+    filters: Filters | None = None
+    description: dict | None = None
+    photos: list[str] | None = None
+    about: str | None = None
+
+
+class ProductCart(Product):
+    quantity: list[int] | None = None

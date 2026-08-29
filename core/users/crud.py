@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
 from core.models import Users, Products, UsersProducts
-from core.models.UsersProducts import ProductStatus
+from core.schemas.api import ApiStatus
+from core.schemas.auth import UsersAdd, UserSchema, UsersGet
 from core.schemas.users import UsersJwtDecode
 from core.users.helper import hash_password, validate_password
 from core.users.jwt import jwt_helper
@@ -20,7 +21,6 @@ from fastapi.security import (
     HTTPAuthorizationCredentials,
 )
 import uuid
-from services.s3.s3_client import s3_client
 
 security = HTTPBearer()
 
@@ -35,14 +35,14 @@ async def get_current_auth_user(
         user_id = payload.get("user_id")
 
         if not user_id:
-            raise HTTPException(401, "Invalid token")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token")
 
         stmt = select(Users).where(Users.id == user_id)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
 
         if not user:
-            raise HTTPException(404, "User not found")
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
         return user
 
     except Exception as e:
@@ -73,18 +73,20 @@ async def get_user_by_cookie(
     cookie = request.cookies.get("session_id")
     if not cookie:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User unauthorized"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не авторизован",
         )
     stmt = select(Users).where(Users.cookie == cookie)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User unauthorized"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не авторизован",
         )
     if user.cookie_expires < now:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия истекла"
         )
     if is_logout:
         return user
@@ -157,15 +159,15 @@ async def get_me(
     user = result.scalar_one_or_none()
     if user is None:
         return False
-    return {
-        "id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "phone": user.phone,
-        "user_role": user.user_role,
-        "date_registration": user.date_registration,
-        "url_id": user.url_id,
-    }
+    return UsersGet(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        phone=user.phone,
+        user_role=user.user_role,
+        date_registration=user.date_registration,
+        url_id=user.url_id,
+    )
 
 
 async def add_user(
@@ -190,12 +192,11 @@ async def add_user(
         user = Users(
             name=username,
             password=str(pwd),
-            user_role=os.getenv("CLIENT"),
+            user_role="client",
             url_id=url_id,
             ip=ip,
         )
         session.add(user)
-        await session.commit()
         access = jwt_helper.encode(
             payload={
                 "username": username,
@@ -213,7 +214,12 @@ async def add_user(
             },
             token_type="refresh",
         )
-        return {"access_token": access, "refresh_token": refresh, "user": user}
+        await session.commit()
+        return UsersAdd(
+            access_token=access,
+            refresh_token=refresh,
+            user=UserSchema.model_validate(user),
+        )
 
     except IntegrityError as e:
         raise HTTPException(
@@ -261,6 +267,7 @@ async def get_profile(session: AsyncSession, url_id: str):
                         UsersProducts.quantity,
                     )
                 ),
+                # Expression: COALESCE(json_agg(...), '[]'::json)
                 cast("[]", JSON),
             ).label("products_info"),
         )
@@ -297,3 +304,4 @@ async def add_photo_profile(
     stmt = update(Users).where(Users.id == user["user_id"]).values(photo=photo)
     await session.execute(stmt)
     await session.commit()
+    return ApiStatus(status="success", message="Фото обновлено")

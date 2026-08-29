@@ -1,9 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from faststream.rabbit import RabbitExchange, RabbitQueue
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from api.public.products import router as products_router_public
@@ -22,19 +24,6 @@ from broker.config import (
 from broker.handlers import *
 from core.config import LoggingConfig
 
-# log_config = LoggingConfig(
-#     log_level_name="DEBUG",
-#     log_format="[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s",
-#     date_format="%Y-%m-%d %H:%M:%S",
-# )
-#
-# logging.basicConfig(
-#     level=log_config.log_level,
-#     format=log_config.log_format,
-#     datefmt=log_config.date_format,
-# )
-# logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,6 +36,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    """Глобальный обработчик всех SQLAlchemy ошибок"""
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Ошибка базы данных. Попробуйте позже."},
+    )
 
 
 app.include_router(products_router_public)

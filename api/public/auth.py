@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
 from core.models import Users
+from core.schemas.auth import UsersAdd, UsersRegister
 from core.users.crud import add_user, login, get_user_by_jwt_token
 from core.users.helper import generate_session_id
 from core.users.jwt import jwt_helper
@@ -27,7 +28,11 @@ router = APIRouter(
 )
 
 
-@router.post("/registration", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/registration",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UsersRegister,
+)
 async def register_user(
     response: Response,
     request: Request,
@@ -53,7 +58,7 @@ async def register_user(
         "access_token": data.get("access_token"),
         "refresh_token": data.get("refresh_token"),
         "user": data.get("user"),
-        "user_role": "client",
+        "user_role": data.get("user_role"),
         "ip": ip,
     }
 

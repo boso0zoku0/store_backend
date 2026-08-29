@@ -20,7 +20,7 @@ class JWTHelper:
         self,
         payload: dict,
         token_type: Literal["access", "refresh"],
-    ):
+    ) -> str:
         now = datetime.now(timezone.utc)
         data = payload.copy()
         if token_type == "access":

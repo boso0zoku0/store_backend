@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Request, Body, status, Query, File, Uplo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import db_helper
-from core.models import Users
+from core.schemas.api import ApiStatus
+from core.schemas.auth import UsersGet
 from core.users.crud import (
     get_current_auth_user,
     get_profile,
@@ -21,7 +22,12 @@ router = APIRouter(
 )
 
 
-@router.get("/me", status_code=status.HTTP_201_CREATED, description="Get user info")
+@router.get(
+    "/me",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UsersGet,
+    description="Get user info",
+)
 async def get_user(
     request: Request,
     session: AsyncSession = Depends(db_helper.session_dependency),
@@ -32,6 +38,7 @@ async def get_user(
 @router.post(
     "/add_photo",
     status_code=status.HTTP_201_CREATED,
+    response_model=ApiStatus,
     description="Add a photo to the user profile",
 )
 async def create_photo_profile(
@@ -44,7 +51,9 @@ async def create_photo_profile(
 ):
     upload_file = await s3_client.upload_avatar(file=photo)
     return await add_photo_profile(
-        session=session, photo=upload_file.get("file_url"), request=request
+        session=session,
+        photo=upload_file.get("file_url"),
+        request=request,
     )
 
 
@@ -60,7 +69,11 @@ async def get_user(
     return await get_profile(url_id=url_id, session=session)
 
 
-@router.get("/role", status_code=status.HTTP_201_CREATED)
+@router.get(
+    "/role",
+    status_code=status.HTTP_201_CREATED,
+    response_model=str,
+)
 async def get_role(
     request: Request,
     session: AsyncSession = Depends(db_helper.session_dependency),

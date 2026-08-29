@@ -21,13 +21,6 @@ from sqlalchemy import (
 
 if TYPE_CHECKING:
     from core.models import Users
-    from core.models import UsersProducts
-
-
-class Filters(BaseModel):
-    category: str = ""
-    colors: str = ""
-    volume: int | None = None
 
 
 class Products(Base):
@@ -40,7 +33,7 @@ class Products(Base):
     short_name: Mapped[str] = mapped_column(Text, nullable=True)
     slug: Mapped[str] = mapped_column(Text, nullable=True)
     price: Mapped[int] = mapped_column(nullable=True)
-    filters: Mapped[Filters] = mapped_column(
+    filters: Mapped[dict] = mapped_column(
         JSONB,
         nullable=True,
         default=lambda: {

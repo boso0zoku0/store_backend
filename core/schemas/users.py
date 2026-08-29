@@ -1,16 +1,10 @@
 from pydantic import BaseModel
 
 
-class UsersBase(BaseModel):
-    name: str
-
-
-class UsersGet(UsersBase):
+class UsersProfile(BaseModel):
     id: int
-
-
-class UsersPost(UsersBase):
-    product_id: int
+    name: str
+    email: str | None = None
 
 
 class UsersJwtDecode(BaseModel):
