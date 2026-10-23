@@ -86,9 +86,7 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    #    Временно открыл порты для проверки работы вебсокетов
-    ports:
-      - "8000:8000"
+
 
 
   frontend_app:
