@@ -52,6 +52,7 @@ services:
     restart: unless-stopped
 
 
+
   certbot:
     image: certbot/certbot:latest
     container_name: certbot_store
@@ -64,7 +65,7 @@ services:
     image: redis/redis-stack-server:latest
     container_name: redis_store
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
@@ -89,6 +90,7 @@ services:
     ports:
       - "8000:8000"
 
+
   frontend_app:
     build:
       context: ../frontend           # Указал где искать Dockerfile, для бэка не надо потому что в текущей папке
@@ -101,7 +103,6 @@ services:
 volumes:
   pgdata:
   redis_data:
-
 
 
 

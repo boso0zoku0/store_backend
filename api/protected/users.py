@@ -6,12 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import db_helper
 from core.schemas.api import ApiStatus
 from core.schemas.auth import UsersGet
+from core.schemas.users_products import SuggestedUsers
 from core.users.crud import (
     get_current_auth_user,
     get_profile,
     get_me,
     get_role_user,
     add_photo_profile,
+    get_users_bought_similar_products,
+    get_suggested_users,
 )
 from services.s3.s3_client import s3_client
 
@@ -24,7 +27,7 @@ router = APIRouter(
 
 @router.get(
     "/me",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     response_model=UsersGet,
     description="Get user info",
 )
@@ -59,7 +62,7 @@ async def create_photo_profile(
 
 @router.get(
     "/get/{url_id}",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     description="Get the user profile with products",
 )
 async def get_user(
@@ -71,7 +74,7 @@ async def get_user(
 
 @router.get(
     "/role",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     response_model=str,
 )
 async def get_role(
@@ -79,3 +82,18 @@ async def get_role(
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
     return await get_role_user(request=request, session=session)
+
+
+# на вебсокетах реализовано похожее - отображение списка диалогов, там доработать чтобы возвращать
+# аватарки
+# найти юзеров купивших похожие товары
+@router.get(
+    "/bought-similar-products",
+    status_code=status.HTTP_200_OK,
+    response_model=list[SuggestedUsers],
+)
+async def get_bought_similar_products(
+    user=Depends(get_current_auth_user),
+    session: AsyncSession = Depends(db_helper.session_dependency),
+):
+    return await get_suggested_users(session=session, user=user)

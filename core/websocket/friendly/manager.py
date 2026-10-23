@@ -13,6 +13,7 @@ from core.websocket.friendly.crud import (
     get_history_dialogs,
     get_dialog_last_message,
     unread_messages,
+    get_user_photo,
 )
 from services.redis.config import redis_client
 
@@ -147,6 +148,8 @@ class WebsocketManager:
         now = datetime.now()
 
         print(f"вызвал send_message, параметры from - {from_url_id} ; to - {to_url_id}")
+        from_user_photo = await get_user_photo(session, from_url_id)
+        to_user_photo = await get_user_photo(session, to_url_id)
         is_open_dialog = await self.track_open_dialog(
             url_id=from_url_id,
             to_url_id=to_url_id,
@@ -162,6 +165,8 @@ class WebsocketManager:
             session=session,
             is_read_message=is_read_message,
         )
+        # после вставки сообщения в бд, вызывать get_dialog который возвращает флаг is_own
+        # но она возвращает список сообщений а тут одно client_msg
 
         if to_url_id in self.users:
             await self.users[to_url_id].send_json(
@@ -171,7 +176,10 @@ class WebsocketManager:
                     "type": "client_msg",
                     "sender": sender,
                     "recipient": recipient,
+                    "from_photo": from_user_photo,
+                    "to_photo": to_user_photo,
                     "message": message,
+                    "is_own": False,
                     "created_at": str(now),
                 }
             )
@@ -182,7 +190,10 @@ class WebsocketManager:
                 "type": "client_msg",
                 "sender": sender,
                 "recipient": recipient,
+                "from_photo": from_user_photo,
+                "to_photo": to_user_photo,
                 "message": message,
+                "is_own": True,
                 "created_at": str(now),
             }
         )

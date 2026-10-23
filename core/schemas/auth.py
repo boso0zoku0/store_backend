@@ -9,12 +9,19 @@ class UserSchema(BaseModel):
     email: str | None = None
     phone: str | None = None
     date_registration: datetime
-    user_role: str
+    user_role: str | None = None
     url_id: str | None = None
     photo: str | None = None
     cookie: str | None = None
     ip: str | None = None
-    cookie_expires: datetime | None = None
+
+    # поле серверное (server_default) — оно не заполняется в Python, а только в БД.
+    # При SELECT оно загружается, но SQLAlchemy не может его прочитать в асинхронном режиме без await
+    # cookie_expires: datetime | None = None
+
+    # разрешает создавать Pydantic-модели из SQLAlchemy-объектов
+    class Config:
+        from_attributes = True
 
 
 class UsersAdd(BaseModel):
@@ -23,10 +30,17 @@ class UsersAdd(BaseModel):
     user: UserSchema
 
 
-class UsersRegister(UsersAdd):
+class UsersRegister(BaseModel):
+    access_token: str
+    refresh_token: str
+    user: UserSchema
     cookie_session_id: str
-    user_role: str
-    ip: str
+    user_role: str | None = None
+    ip: str | None = None
+
+    # разрешает создавать Pydantic-модели из SQLAlchemy-объектов
+    class Config:
+        from_attributes = True
 
 
 class UsersGet(BaseModel):
@@ -34,6 +48,7 @@ class UsersGet(BaseModel):
     name: str
     email: str | None = None
     phone: str | None = None
+    photo: str | None = None
     user_role: str
     date_registration: datetime | None = None
     url_id: str | None = None

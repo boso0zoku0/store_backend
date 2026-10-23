@@ -23,6 +23,34 @@ from broker.config import (
 )
 from broker.handlers import *
 from core.config import LoggingConfig
+import logging.config
+
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "loggers": {
+            "uvicorn.access": {"level": "WARNING"},
+            "sqlalchemy.engine": {"level": "WARNING"},
+        },
+    }
+)
 
 
 @asynccontextmanager

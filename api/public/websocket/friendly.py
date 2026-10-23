@@ -16,10 +16,13 @@ router = APIRouter()
 
 @router.get("/user/by")
 async def get_user(
-    url_id: Annotated[str, Query()],
+    my_url_id: Annotated[str, Query()],
+    interlocutor_url_id: Annotated[str, Query()],
     session: AsyncSession = Depends(db_helper.session_dependency),
 ):
-    return await get_user_by_url_id_or_id(session, url_id=url_id)
+    return await get_user_by_url_id_or_id(
+        session, my_url_id=my_url_id, interlocutor_url_id=interlocutor_url_id
+    )
 
 
 @router.get("/get-dialogs")

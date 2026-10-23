@@ -14,6 +14,7 @@ from core.models import Users, Products, UsersProducts
 from core.schemas.api import ApiStatus
 from core.schemas.auth import UsersAdd, UserSchema, UsersGet
 from core.schemas.users import UsersJwtDecode
+from core.schemas.users_products import SuggestedUsers
 from core.users.helper import hash_password, validate_password
 from core.users.jwt import jwt_helper
 from fastapi.security import (
@@ -21,7 +22,9 @@ from fastapi.security import (
     HTTPAuthorizationCredentials,
 )
 import uuid
+import logging
 
+log = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
@@ -113,6 +116,9 @@ async def login(
     password: str = Form(),
 ):
     user = (await session.scalars(select(Users).where(Users.name == username))).first()
+    await session.refresh(
+        user, attribute_names=["cookie_expires"]
+    )  # Принудительно загрузил
 
     if not user:
         return False
@@ -144,7 +150,11 @@ async def login(
             )
         )
         await session.commit()
-        return {"access_token": access, "refresh_token": refresh, "user": user}
+        return {
+            "access_token": access,
+            "refresh_token": refresh,
+            "user": UserSchema.model_validate(user),
+        }
 
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
@@ -164,6 +174,7 @@ async def get_me(
         name=user.name,
         email=user.email,
         phone=user.phone,
+        photo=user.photo,
         user_role=user.user_role,
         date_registration=user.date_registration,
         url_id=user.url_id,
@@ -197,6 +208,7 @@ async def add_user(
             ip=ip,
         )
         session.add(user)
+        await session.flush()
         access = jwt_helper.encode(
             payload={
                 "username": username,
@@ -215,6 +227,7 @@ async def add_user(
             token_type="refresh",
         )
         await session.commit()
+
         return UsersAdd(
             access_token=access,
             refresh_token=refresh,
@@ -305,3 +318,85 @@ async def add_photo_profile(
     await session.execute(stmt)
     await session.commit()
     return ApiStatus(status="success", message="Фото обновлено")
+
+
+async def get_suggested_users(session: AsyncSession, user: UserSchema):
+    stmt_my_products = select(UsersProducts.products_id).where(
+        UsersProducts.users_id == user.id
+    )
+    res = await session.execute(stmt_my_products)
+    my_products = res.scalars().all()
+    if len(my_products) > 2:
+        return await get_users_bought_similar_products(session, user)
+    else:
+        return await get_users_by_popular_purchases(session, user)
+
+
+# список диалогов пуст, юзер покупал продукты ранее, на основе этого предложу собеседников
+# найти юзеров кто купил такие же товары, пусть будет хотя бы 2
+async def get_users_bought_similar_products(
+    session: AsyncSession, user: UserSchema
+) -> list[SuggestedUsers]:
+    stmt_my_products = (
+        select(UsersProducts.products_id)
+        .where(UsersProducts.users_id == user.id)
+        .distinct()
+    )
+    res = await session.execute(stmt_my_products)
+    my_products = res.scalars().all()
+    stmt = (
+        select(
+            Users.id,
+            Users.name,
+            Users.url_id,
+        )
+        .join(UsersProducts, UsersProducts.users_id == Users.id)
+        .where(
+            Users.id != user.id,
+            UsersProducts.products_id.in_(my_products),
+        )
+        .group_by(Users.id, Users.name, Users.url_id)
+        .having(func.count(func.distinct(UsersProducts.products_id)) >= 2)
+        .order_by(func.count(func.distinct(UsersProducts.products_id)).desc())
+        .limit(50)
+    )
+
+    result = await session.execute(stmt)
+    users = result.mappings().all()
+    return [SuggestedUsers(**row).model_dump(mode="json") for row in users]
+
+
+# список диалогов пуст, юзер не покупал товары ранее, предложу друзей из активных покупателей
+async def get_users_by_popular_purchases(
+    session: AsyncSession,
+    user: UserSchema,
+) -> list[SuggestedUsers]:
+    subq_bought_avg = (
+        select(
+            UsersProducts.users_id,
+            func.count(UsersProducts.products_id).label("cnt"),
+        )
+        .group_by(UsersProducts.users_id)
+        .subquery()
+    )
+    stmt_bought_avg = select(func.avg(subq_bought_avg.c.cnt).label("avg_products"))
+    res = await session.execute(stmt_bought_avg)
+    bought_avg = int(res.scalar_one_or_none())
+    stmt = (
+        select(
+            Users.id,
+            Users.name,
+            Users.url_id,
+            func.count(UsersProducts.products_id).label("bought_products"),
+        )
+        .join(UsersProducts, UsersProducts.users_id == Users.id)
+        .where(UsersProducts.users_id != user.id)
+        .group_by(Users.id, Users.name, Users.url_id)
+        .having(func.count(UsersProducts.products_id) >= bought_avg)
+        .order_by(func.count(UsersProducts.products_id).desc())
+        .limit(10)
+    )
+    result = await session.execute(stmt)
+    users = result.mappings().all()
+    log.info(stmt.compile(compile_kwargs={"literal_binds": True}))
+    return [SuggestedUsers(**row) for row in users]

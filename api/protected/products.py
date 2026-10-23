@@ -21,7 +21,7 @@ from starlette import status
 from core import db_helper
 from core.models.UsersProducts import ProductStatus
 from core.schemas.api import ApiStatus
-from core.schemas.products import ProductsPost, ProductCommentAdd, Product, ProductCart
+from core.schemas.products import ProductsPost, ProductCommentAdd, Product
 from core.users.crud import (
     get_user_by_cookie,
     get_current_auth_user,
@@ -59,6 +59,7 @@ async def upload_product(
 @router.post(
     "/add",
     response_model=ApiStatus,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_products(
     product: ProductsPost,
@@ -70,6 +71,7 @@ async def create_products(
 @router.post(
     "/add/to-cart",
     response_model=ApiStatus,
+    status_code=status.HTTP_200_OK,
 )
 async def create_product(
     slug: Annotated[str, Body()],
@@ -104,7 +106,6 @@ async def change_product_status(
 
 @router.get(
     "/get/to-cart",
-    response_model=list[ProductCart],
     status_code=status.HTTP_200_OK,
 )
 async def get_cart(

@@ -42,7 +42,14 @@ async def register_user(
 ):
     ip = request.client.host
     cookie = str(generate_session_id())
-    response.set_cookie(key="session_id", value=cookie, max_age=604800, path="/")
+    response.set_cookie(
+        key="session_id",
+        value=cookie,
+        max_age=604800,
+        path="/",
+        secure=True,
+        domain=".clay-shop.ru",
+    )
     data = await add_user(
         session=session,
         username=username,
@@ -53,17 +60,21 @@ async def register_user(
         update(Users).where(Users.name == username).values(cookie=cookie)
     )
     await session.commit()
-    return {
-        "cookie_session_id": cookie,
-        "access_token": data.get("access_token"),
-        "refresh_token": data.get("refresh_token"),
-        "user": data.get("user"),
-        "user_role": data.get("user_role"),
-        "ip": ip,
-    }
+    return UsersRegister(
+        cookie_session_id=cookie,
+        access_token=data.access_token,
+        refresh_token=data.refresh_token,
+        user=data.user,
+        user_role="client",
+        ip=ip,
+    )
 
 
-@router.post("/login", status_code=status.HTTP_200_OK)
+@router.post(
+    "/login",
+    status_code=status.HTTP_200_OK,
+    response_model=UsersRegister,
+)
 async def user_login(
     response: Response,
     username: str = Form(),
@@ -90,13 +101,13 @@ async def user_login(
             )
         )
         await session.commit()
-        return {
-            "cookie_session_id": cookie_update,
-            "access_token": response_validate.get("access_token"),
-            "refresh_token": response_validate.get("refresh_token"),
-            "user": response_validate.get("user"),
-            "user_role": "client",
-        }
+        return UsersRegister(
+            cookie_session_id=cookie_update,
+            access_token=response_validate["access_token"],
+            refresh_token=response_validate["refresh_token"],
+            user=response_validate["user"],
+            user_role="client",
+        )
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 

@@ -15,3 +15,6 @@ class DialogResponse(BaseModel):
     is_own: bool
     is_read_message: bool
     interlocutor: str | None = None
+    interlocutor_photo: str | None = None
+    from_photo: str | None = None
+    to_photo: str | None = None

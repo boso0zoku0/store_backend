@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Body, Path
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +76,7 @@ async def get_price_range(
 @router.get(
     "/product/{product_id}/reviewers",
     description="Открыть все отзывы юзеров к продукту",
-    response_model=list[GetProductReviewers],
+    response_model=Optional[list[GetProductReviewers]],
 )
 async def get_product_reviewers(
     product_id: Annotated[int, Path()],

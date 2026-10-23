@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from core.websocket.friendly.schemas import DialogResponse
+
 
 class UsersProfile(BaseModel):
     id: int
@@ -12,3 +14,7 @@ class UsersJwtDecode(BaseModel):
     username: str
     sub: str
     url_id: str | None = None
+
+
+class UsersGetInfo(DialogResponse):
+    pass

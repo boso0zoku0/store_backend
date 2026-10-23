@@ -97,7 +97,3 @@ class Product(BaseModel):
     description: dict | None = None
     photos: list[str] | None = None
     about: str | None = None
-
-
-class ProductCart(Product):
-    quantity: list[int] | None = None
