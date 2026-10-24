@@ -86,6 +86,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:80"
 
 
 
@@ -96,6 +98,8 @@ services:
     volumes:
       - ../frontend/dist:/usr/share/nginx/html:ro
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:80:80"
 
 
 volumes:
