@@ -87,7 +87,11 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8000:80"
+      #  на vpc создал слушающий сокет 127.0.0.1:8000 и привязал его только к контейнеру
+      #  backend_app
+      # при поступлении трафика на этот ip и port,
+      # докер перенаправляет его на порт 8000 этого контейнера
+      - "127.0.0.1:8000:8000"
 
 
 
@@ -99,7 +103,7 @@ services:
       - ../frontend/dist:/usr/share/nginx/html:ro
     restart: unless-stopped
     ports:
-      - "127.0.0.1:80:80"
+      - "127.0.0.1:8080:80"
 
 
 volumes:
